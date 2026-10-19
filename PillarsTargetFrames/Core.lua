@@ -105,7 +105,7 @@ local function ProbeRows()
 end
 
 -- /ptf opens the settings; /ptf <page> opens a page by the start of its
--- name (/ptf focus, /ptf look, /ptf pet); /ptf probe and /ptf profiles.
+-- name (/ptf focus, /ptf look); /ptf probe and /ptf profiles.
 SLASH_PILLARSTARGETFRAMES1 = "/ptf"
 SLASH_PILLARSTARGETFRAMES2 = "/pillarstargetframes"
 SlashCmdList.PILLARSTARGETFRAMES = function(msg)
@@ -128,12 +128,9 @@ SlashCmdList.PILLARSTARGETFRAMES = function(msg)
 	elseif command ~= "" then
 		if command == "tot" then
 			command = "target of"
-		elseif command == "pet" then
-			command = "target's"
 		end
 		-- The shortest matching page name wins: /ptf target opens Target,
-		-- /ptf target of (or /ptf tot) opens Target of Target, /ptf pet
-		-- opens Target's Pet.
+		-- /ptf target of (or /ptf tot) opens Target of Target.
 		local best, bestLength
 		for name, index in pairs(ns.pageIndex) do
 			if strlower(name):find(command, 1, true) == 1 and (not bestLength or #name < bestLength) then

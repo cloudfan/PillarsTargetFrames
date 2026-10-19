@@ -21,8 +21,7 @@ end
 -- buttons are never touched: on Forever, moving them blocks Blizzard's aura
 -- code and spreads taint (chat's Enter key stops working). Their container
 -- is left visible, so they show where Blizzard places them.
--- The target's pet has no Blizzard frame: its frame is ours, shown by a
--- unit watch. Clicks go to secure buttons of our own over each layout.
+-- Clicks go to secure buttons of our own over each layout.
 --
 -- Nothing the client keeps from addons is shown: no threat, no aura data
 -- of our own, and a secret reaction, raid icon or cast time is left out.
@@ -42,7 +41,7 @@ local CROP = 0.06 -- class icons, cropped so the art fills the box
 local TOTEM_RING = { file = "Interface\\CharacterFrame\\TotemBorder", ring = 1.03, dot = 0.6 }
 local COMBO_EMPTY = { 0.12, 0.12, 0.12, 0.85 }
 local COMBO_POWER = Enum and Enum.PowerType and Enum.PowerType.ComboPoints or 4
-local TICK = 0.2 -- refresh of units without events (target of target, target's pet)
+local TICK = 0.2 -- refresh of the target of target, which has no events
 
 -- Blizzard's reaction colors (FACTION_BAR_COLORS), for clients without them.
 local REACTION_COLORS = {
@@ -409,8 +408,7 @@ function Skin:Get(key)
 	return settings[self.prefix .. key]
 end
 
--- Blizzard's frame: the one ours lives in (for the target's pet, the target
--- frame it is placed against).
+-- Blizzard's frame: the one ours lives in.
 function Skin:Blizzard()
 	return self.spec.frame()
 end
@@ -496,9 +494,6 @@ function Skin:IsAuraContainer(frame)
 end
 
 function Skin:HideBlizzard()
-	if self.spec.pet then
-		return
-	end
 	local pieces = self:BlizzardPieces()
 	local count = 0
 	for _, region in ipairs(pieces) do
@@ -531,15 +526,6 @@ function Skin:Create()
 		root:SetSize(1, 1)
 		root:SetFrameStrata(blizzard:GetFrameStrata())
 		self.root = root
-	end
-	if self.spec.pet then
-		-- Shown by a unit watch while the target has a pet.
-		local watcher = CreateFrame("Frame", nil, self.root, "SecureHandlerStateTemplate")
-		watcher:SetAllPoints(self.root)
-		watcher:SetAttribute("unit", self.unit)
-		RegisterUnitWatch(watcher)
-		self.watcher = watcher
-		parent = watcher
 	end
 	local holder = CreateFrame("Frame", nil, parent)
 	holder:SetSize(1, 1)
@@ -921,12 +907,6 @@ function Skin:LayoutNow()
 		return
 	end
 	if not self.holder then
-		if self.spec.pet and InCombatLockdown() then
-			-- Its unit watch is secure: made out of combat.
-			local skin = self
-			kit.events.AfterCombat(self.prefix .. "Create", function() skin:LayoutNow() end)
-			return
-		end
 		self:Create()
 		if self.root then
 			self:AddMover()
@@ -1325,8 +1305,8 @@ end
 
 -- Refresh ----------------------------------------------------------------------------------
 
--- Everything that depends on the unit: a new target, focus, target's target
--- or target's pet.
+-- Everything that depends on the unit: a new target, focus or target's
+-- target.
 function Skin:Refresh()
 	if not self:Ready() then
 		return
@@ -1366,19 +1346,11 @@ local function ScreenOffset(frame, point)
 end
 
 -- The first time (or after "Put Back"): the target of target where
--- Blizzard's was, the target's pet just left of the target frame.
+-- Blizzard's was.
 function Skin:PlaceFirst()
 	local skin = self
 	kit.events.Defer(self.prefix .. "PlaceFirst", function()
-		local x, y
-		if skin.spec.pet then
-			x, y = ScreenOffset(TargetFrame, "LEFT")
-			if x then
-				x = x - skin:Get("HealthWidth") / 2 - 60
-			end
-		else
-			x, y = ScreenOffset(skin:Blizzard())
-		end
+		local x, y = ScreenOffset(skin:Blizzard())
 		-- Placed goes first, so the changes below do not come back here.
 		kit:Set(skin.prefix .. "Placed", true)
 		kit:Set(skin.prefix .. "Point", "CENTER")
@@ -1439,7 +1411,6 @@ function Skin:Probe()
 	local frame, unit = self:Blizzard(), self.unit
 	local rows = {
 		"Blizzard frame: " .. ns.Has(frame) .. " (" .. tostring(frame and DebugName(frame)) .. ")"
-			.. (self.spec.pet and ", unit watch: " .. ns.Has(RegisterUnitWatch) or "")
 			.. ", pieces made invisible: " .. tostring(self.hiddenCount or 0),
 		"Active: " .. (self.active and "yes" or "no") .. (self.missing and " (Blizzard's frame is missing)" or "")
 			.. ", shown: " .. tostring(self.holder and self.holder:IsVisible() or false),
@@ -1458,38 +1429,18 @@ function Skin:Probe()
 		rows[#rows + 1] = "Combo points: " .. tostring(self.comboMode or "not shown") .. ", wanted: "
 			.. tostring(self.holder and self:ComboWanted() or false)
 	end
-	local auras = not self.spec.small and not self.spec.pet and self:AuraContainer()
+	local auras = not self.spec.small and self:AuraContainer()
 	if auras then
 		local alpha = auras.GetEffectiveAlpha and auras:GetEffectiveAlpha()
 		rows[#rows + 1] = "Blizzard's buff container: shown " .. tostring(auras:IsVisible()) .. ", opacity "
 			.. (IsSecret(alpha) and "secret" or tostring(alpha)) .. " (left as Blizzard places it)"
-	elseif not self.spec.small and not self.spec.pet then
+	elseif not self.spec.small then
 		rows[#rows + 1] = "Blizzard's buff container: not found (TargetFrameContent.TargetFrameContentContextual.Auras)"
 	end
 	if self.root then
 		rows[#rows + 1] = "Edit Mode box: " .. (self.mover and "yes" or "no (needs ClaiibuAPI 1.4.0)")
 			.. ", position " .. tostring(self:Get("Point")) .. " " .. tostring(self:Get("OffsetX")) .. ", "
 			.. tostring(self:Get("OffsetY"))
-		if self.watcher then
-			rows[#rows + 1] = "Unit watch frame shown: " .. tostring(self.watcher:IsShown()) .. ", targetpet exists: "
-				.. tostring(Plain(UnitExists(self.unit)))
-			-- Whose pet the client would report: only players' pets count, and
-			-- the probe shows whether this build answers for them at all.
-			local function Word(value)
-				if IsSecret(value) then
-					return "secret"
-				end
-				return tostring(value)
-			end
-			rows[#rows + 1] = "Your target: exists " .. Word(UnitExists("target")) .. ", a player "
-				.. Word(UnitIsPlayer("target")) .. ", player controlled "
-				.. Word(UnitPlayerControlled and UnitPlayerControlled("target")) .. ", in your party "
-				.. Word(UnitInParty and UnitInParty("target")) .. ", in your raid " .. Word(UnitInRaid and UnitInRaid("target"))
-			rows[#rows + 1] = "targetpet: GUID " .. (UnitGUID and (IsSecret(UnitGUID("targetpet")) and "secret"
-				or (UnitGUID("targetpet") and "yes" or "none")) or "no UnitGUID") .. ", name "
-				.. (IsSecret(UnitName("targetpet")) and "secret" or (UnitName("targetpet") and "yes" or "none"))
-				.. "; your own pet exists " .. Word(UnitExists("pet"))
-		end
 	end
 	rows[#rows + 1] = "Click button: " .. (self.clicker and "yes" or "no (made out of combat, once the frame shows)")
 		.. (self.spec.poll and (", refresh ticker: " .. (self.ticker and "running" or "stopped")) or "")
@@ -1497,8 +1448,7 @@ function Skin:Probe()
 end
 
 -- spec: name, prefix, unit, frame (function returning Blizzard's frame),
--- small (the target of target: its own pieces are made invisible), pet (our
--- own frame by a unit watch), ownToT (the frame has a target of target of
+-- small (the target of target: its own pieces are made invisible), ownToT (the frame has a target of target of
 -- its own to make invisible), combo, poll (no events for the unit),
 -- inherit (the Target page's settings until a section is overridden),
 -- movable (its own place on the screen, with an Edit Mode box).
@@ -1577,7 +1527,7 @@ local function RefreshUnits(units)
 end
 
 On("PLAYER_TARGET_CHANGED", function()
-	RefreshUnits({ target = true, targettarget = true, targetpet = true })
+	RefreshUnits({ target = true, targettarget = true })
 end)
 On("PLAYER_FOCUS_CHANGED", function()
 	RefreshUnits({ focus = true })
@@ -1585,11 +1535,6 @@ end)
 On("UNIT_TARGET", function(unit)
 	if unit == "target" then
 		RefreshUnits({ targettarget = true })
-	end
-end)
-On("UNIT_PET", function(unit)
-	if unit == "target" then
-		RefreshUnits({ targetpet = true })
 	end
 end)
 

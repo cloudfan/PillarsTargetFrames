@@ -74,7 +74,6 @@ ns.UNITS = {
 	{ prefix = "tot", page = "Target of Target", unit = "targettarget", what = "target of target frame", inherit = true,
 		movable = true },
 	{ prefix = "ff", page = "Focus", unit = "focus", what = "focus frame", inherit = true },
-	{ prefix = "tp", page = "Target's Pet", unit = "targetpet", what = "target's pet frame", movable = true },
 }
 
 -- Sections of a frame's settings. Frames with inherit = true use the
@@ -176,7 +175,6 @@ local OVERRIDES = {
 	tf = {},
 	tot = { PortraitShow = false, PowerShow = false, CastShow = false },
 	ff = { PortraitShow = false },
-	tp = { HealthWidth = 80, HealthHeight = 18, NameShow = false },
 }
 
 local defaults = {
@@ -250,7 +248,7 @@ end
 
 local kit = API.Settings.New(addonName, {
 	title = "Pillars Target Frames",
-	description = "Target, target of target, focus and target's pet frames in the Pillars look. Blizzard's own "
+	description = "Target, target of target and focus frames in the Pillars look. Blizzard's own "
 		.. "frames are made invisible; their buffs and debuffs stay where Blizzard places them.",
 	features = {
 		"One layout for every frame: name bar, health bar, resource bar and portrait, with a short list of changes per frame.",
@@ -332,9 +330,6 @@ local function UnitPage(page, unit)
 	if unit.unit == "targettarget" then
 		page:Text("Shows when Blizzard's own target of target frame would: turn it on or off in Edit Mode "
 			.. "(the target frame's Target of Target option). It shows no buffs or debuffs.")
-	elseif unit.unit == "targetpet" then
-		page:Text("Your target's pet, shown while your target has one. Blizzard has no frame for it, so this one is "
-			.. "the addon's own; it shows no buffs or debuffs.")
 	else
 		page:Text("Blizzard's " .. what .. " is made invisible and this one shows in its place. Move it in Edit Mode.")
 	end
@@ -439,7 +434,7 @@ local PAGES = {}
 
 PAGES["General"] = function(page)
 	page:Header("Pillars Target Frames")
-	page:Text("Target, target of target, focus and target's pet frames in the Pillars look. Each frame has its "
+	page:Text("Target, target of target and focus frames in the Pillars look. Each frame has its "
 		.. "own page; the Look page (border, background, bar texture, fonts and colors) is shared.\n"
 		.. "Blizzard's target, target of target and focus frames, and everything on them, are made invisible. "
 		.. "The new frames show when Blizzard's would and move with them in Edit Mode. Blizzard's buffs and "
@@ -499,11 +494,7 @@ PAGES["Target of Target"] = function(page)
 	UnitPage(page, ns.UNITS[2])
 end
 
-PAGES["Target's Pet"] = function(page)
-	UnitPage(page, ns.UNITS[4])
-end
-
-local PAGE_ORDER = { "General", "Focus", "Look", "Target", "Target of Target", "Target's Pet" }
+local PAGE_ORDER = { "General", "Focus", "Look", "Target", "Target of Target" }
 
 -- The kit:Open index of each page: 1 is the landing page.
 ns.pageIndex = {}

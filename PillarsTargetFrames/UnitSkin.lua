@@ -599,6 +599,8 @@ function Skin:Create()
 	parts.cast:SetScript("OnUpdate", function(bar)
 		skin:CastTick(bar)
 	end)
+	parts.cast:SetScript("OnShow", function() skin:UpdatePowerTextShown() end)
+	parts.cast:SetScript("OnHide", function() skin:UpdatePowerTextShown() end)
 
 	parts.combo = CreateFrame("Frame", nil, holder)
 	parts.combo.points = {}
@@ -1099,6 +1101,7 @@ function Skin:LayoutNow()
 	end
 	parts.healthText:SetAllPoints(health)
 	parts.powerText:SetAllPoints(power)
+	self:UpdatePowerTextShown()
 	parts.nameText:SetAllPoints(name)
 	PlaceText(texts.health, self:Get("HealthTextPoint"), 0, 0, health)
 	PlaceText(texts.power, self:Get("PowerTextPoint"), 0, 0, power)
@@ -1370,6 +1373,17 @@ end
 
 function Skin:CastFailed()
 	self:ShowCastEnd(FAILED or "Failed")
+end
+
+-- The resource bar's text hides while the cast bar covers the resource bar
+-- (Show Cast Bar on, Separate Bar off), and comes back when it hides.
+function Skin:UpdatePowerTextShown()
+	local parts = self.parts
+	if not parts.powerText then
+		return
+	end
+	local covered = self:Get("CastShow") and not self:Get("CastSeparate") and parts.cast:IsShown()
+	parts.powerText:SetShown(not covered)
 end
 
 function Skin:CastTick(cast)

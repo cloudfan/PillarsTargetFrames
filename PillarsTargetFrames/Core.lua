@@ -39,6 +39,18 @@ function ns.Has(value)
 	return value ~= nil and "yes" or "|cffff4040MISSING|r"
 end
 
+-- Actions the client blocked or forbade this session, and the addon it
+-- blamed, for the probe (a stuck chat box or "Interface action failed"
+-- shows up here).
+ns.blocked = {}
+for _, event in ipairs({ "ADDON_ACTION_BLOCKED", "ADDON_ACTION_FORBIDDEN" }) do
+	pcall(ns.kit.events.On, event, function(addon, action)
+		if #ns.blocked < 20 then
+			ns.blocked[#ns.blocked + 1] = event:sub(14) .. ": " .. tostring(addon) .. " → " .. tostring(action)
+		end
+	end)
+end
+
 -- Shared probe rows: the client APIs the frames lean on.
 local function SharedRows()
 	local _, _, _, build = GetBuildInfo()
@@ -70,6 +82,10 @@ local function ProbeRows()
 	rows[#rows + 1] = "Client:"
 	for _, row in ipairs(SharedRows()) do
 		rows[#rows + 1] = "  " .. row
+	end
+	rows[#rows + 1] = "  Actions blocked this session: " .. (#ns.blocked > 0 and "" or "none")
+	for _, line in ipairs(ns.blocked) do
+		rows[#rows + 1] = "    " .. line
 	end
 	for i = 1, #features do
 		if features[i].probe then

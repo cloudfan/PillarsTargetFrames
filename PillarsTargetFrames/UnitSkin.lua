@@ -382,7 +382,9 @@ end
 local function NoMouse(key, frames)
 	kit.events.AfterCombat(key, function()
 		for _, frame in ipairs(frames) do
-			if type(frame) == "table" and not Forbidden(frame) and frame.EnableMouse then
+			-- Never on Blizzard's protected frames (the unit buttons themselves).
+			if type(frame) == "table" and not Forbidden(frame) and frame.EnableMouse
+				and not (frame.IsProtected and frame:IsProtected()) then
 				frame:EnableMouse(false)
 			end
 		end
@@ -620,9 +622,6 @@ function Skin:StartTicker()
 			skin:StopTicker()
 			return
 		end
-		if skin.preview then
-			return
-		end
 		skin:UpdateHealth()
 		skin:UpdatePower()
 		skin:UpdateName()
@@ -725,13 +724,6 @@ function Skin:PlaceSecure()
 		skin.clicker:SetSize(width, height)
 		skin.clicker:Show()
 		skin.clickerPlaced = true
-		-- Edit Mode's highlight covers our layout instead of the old frame.
-		local selection = not skin.root and blizzard.Selection
-		if type(selection) == "table" and selection.SetPoint and not selection:IsProtected() then
-			selection:ClearAllPoints()
-			selection:SetPoint("BOTTOMLEFT", holder, "BOTTOMLEFT", x, y)
-			selection:SetSize(width, height)
-		end
 	end)
 end
 
@@ -1030,9 +1022,6 @@ function Skin:LayoutNow()
 	texts.cast:SetWidth(math.max(10, cast:GetWidth() - 8))
 
 	self:Refresh()
-	if self.preview then
-		self:FillPreview()
-	end
 	self:PlaceSecure()
 end
 
@@ -1682,7 +1671,7 @@ end
 -- Everything that depends on the unit: a new target, focus, target's target
 -- or target's pet.
 function Skin:Refresh()
-	if not self:Ready() or self.preview then
+	if not self:Ready() then
 		return
 	end
 	self.unitExists = Plain(UnitExists(self.unit)) ~= false
@@ -1786,66 +1775,7 @@ function Skin:AddMover()
 		xKey = self.prefix .. "OffsetX",
 		yKey = self.prefix .. "OffsetY",
 		regions = function() return { skin.root } end,
-		onEnter = function() skin:Preview(true) end,
-		onExit = function() skin:Preview(false) end,
 	})
-end
-
--- While Edit Mode is open the frame shows with sample contents, so it can be
--- placed without a target of target or a target with a pet. Edit Mode is
--- out of combat; the unit watch and the parent change are undone on exit.
-function Skin:Preview(on)
-	if not (self.active and self.holder) or InCombatLockdown() then
-		return
-	end
-	if on == (self.preview or false) then
-		return
-	end
-	self.preview = on
-	local holder, blizzard = self.holder, self:Blizzard()
-	if on then
-		if self.watcher then
-			UnregisterUnitWatch(self.watcher)
-			self.watcher:Show()
-		else
-			holder:SetParent(self.root)
-		end
-		holder:Show()
-		self:FillPreview()
-	else
-		if self.watcher then
-			RegisterUnitWatch(self.watcher)
-		else
-			holder:SetParent(blizzard)
-		end
-		holder:SetFrameStrata(blizzard:GetFrameStrata())
-		holder:SetFrameLevel(blizzard:GetFrameLevel() + 5)
-		self.dead = nil
-		self:Layout()
-	end
-end
-
--- Sample contents: full-ish bars, the frame's name, your own portrait.
-function Skin:FillPreview()
-	local parts, texts = self.parts, self.texts
-	parts.health:SetMinMaxValues(0, 100)
-	parts.health:SetValue(75)
-	local health = Color("healthColor")
-	parts.health:SetStatusBarColor(health[1], health[2], health[3])
-	parts.power:SetMinMaxValues(0, 100)
-	parts.power:SetValue(50)
-	local mana = Color("manaColor")
-	parts.power:SetStatusBarColor(mana[1], mana[2], mana[3])
-	texts.health:SetText(self:Get("HealthText") ~= "none" and "75%" or "")
-	texts.power:SetText("")
-	texts.name:SetText(self:Get("NameTextShow") and self.spec.name or "")
-	texts.level:SetText(self:Get("LevelShow") and "60" or "")
-	texts.cast:SetText("")
-	parts.cast:Hide()
-	parts.portrait.class:Hide()
-	parts.portrait.model:Show()
-	parts.portrait.model:SetUnit("player")
-	HoldStill(parts.portrait.model)
 end
 
 -- Apply and probe ------------------------------------------------------------------------

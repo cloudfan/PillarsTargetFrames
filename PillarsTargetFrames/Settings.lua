@@ -72,10 +72,35 @@ local PORTRAIT_TARGETS = {
 -- it; combo: your combo points show on it.
 ns.UNITS = {
 	{ prefix = "tf", page = "Target", unit = "target", what = "target frame", auras = true, combo = true },
-	{ prefix = "tot", page = "Target of Target", unit = "targettarget", what = "target of target frame" },
-	{ prefix = "ff", page = "Focus", unit = "focus", what = "focus frame", auras = true },
+	{ prefix = "tot", page = "Target of Target", unit = "targettarget", what = "target of target frame", inherit = true },
+	{ prefix = "ff", page = "Focus", unit = "focus", what = "focus frame", auras = true, inherit = true },
 	{ prefix = "tp", page = "Target's Pet", unit = "targetpet", what = "target's pet frame" },
 }
+
+-- Sections of a frame's settings. Frames with inherit = true use the
+-- Target page's settings for a section until its Override toggle
+-- (<prefix>Override<Section>) is checked. Enable and the frame's offsets
+-- are always its own.
+ns.SECTIONS = {
+	{ key = "Health", label = "Health Bar", prefixes = { "Health" } },
+	{ key = "Power", label = "Resource Bar", prefixes = { "Power" } },
+	{ key = "Name", label = "Name Bar", prefixes = { "Name", "Level" } },
+	{ key = "Portrait", label = "Portrait", prefixes = { "Portrait" } },
+	{ key = "Cast", label = "Cast Bar", prefixes = { "Cast" } },
+	{ key = "Auras", label = "Buffs and Debuffs", prefixes = { "Buff", "Debuff", "Aura" } },
+}
+
+-- The section a per-frame setting (without its prefix) belongs to, or nil.
+function ns.SectionOf(key)
+	for _, section in ipairs(ns.SECTIONS) do
+		for _, start in ipairs(section.prefixes) do
+			if key:sub(1, #start) == start then
+				return section.key
+			end
+		end
+	end
+	return nil
+end
 
 -- The layout: one design for every frame (the target frame's) ...
 local LAYOUT = {
@@ -225,6 +250,21 @@ for _, unit in ipairs(ns.UNITS) do
 	if unit.combo then
 		Add(COMBO_LAYOUT)
 	end
+	-- Override toggles: on by default for every section this frame's own
+	-- defaults change.
+	if unit.inherit then
+		for _, section in ipairs(ns.SECTIONS) do
+			if section.key ~= "Auras" or unit.auras then
+				local changed = false
+				for key in pairs(overrides) do
+					if ns.SectionOf(key) == section.key then
+						changed = true
+					end
+				end
+				defaults[unit.prefix .. "Override" .. section.key] = changed
+			end
+		end
+	end
 end
 
 local kit = API.Settings.New(addonName, {
@@ -295,6 +335,16 @@ local function OwnSize(page, p, part, what, matches)
 		min = 4, max = 120, step = 1, format = "%d" })
 end
 
+-- On Focus and Target of Target: the section header and its Override toggle.
+local function Section(page, unit, key, label)
+	page:Header(label)
+	if unit.inherit then
+		page:Checkbox({ key = unit.prefix .. "Override" .. key, label = "Override Target's " .. label,
+			tooltip = "Unchecked, the " .. unit.what .. " uses the Target page's " .. strlower(label)
+				.. " settings and the ones below are ignored. Checked, it uses the settings below." })
+	end
+end
+
 local function UnitPage(page, unit)
 	local p, what = unit.prefix, unit.what
 	page:Header(unit.page)
@@ -307,6 +357,10 @@ local function UnitPage(page, unit)
 	else
 		page:Text("Blizzard's " .. what .. " is made invisible and this one shows in its place. Move it in Edit Mode.")
 	end
+	if unit.inherit then
+		page:Text("Each section follows the Target page until you check its Override toggle; the toggle starts "
+			.. "checked where this frame's own defaults differ.")
+	end
 	page:Checkbox({ key = p .. "Enabled", reload = true, label = "Enable",
 		tooltip = "Show this frame. Unchecked, Blizzard's frame comes back after a reload." })
 	if unit.unit == "targetpet" then
@@ -318,7 +372,7 @@ local function UnitPage(page, unit)
 		Offsets(page, p .. "Offset", "frame inside Blizzard's frame", -200, 200)
 	end
 
-	page:Header("Health Bar")
+	Section(page, unit, "Health", "Health Bar")
 	page:Slider({ key = p .. "HealthWidth", label = "Width",
 		tooltip = "Width of the health bar. The other bars match it unless they have their own size.",
 		min = 20, max = 400, step = 1, format = "%d" })
@@ -331,14 +385,14 @@ local function UnitPage(page, unit)
 	page:Dropdown({ key = p .. "HealthText", label = "Text", options = VALUE_TEXT })
 	page:Anchor({ key = p .. "HealthTextPoint", label = "Text Position" })
 
-	page:Header("Resource Bar")
+	Section(page, unit, "Power", "Resource Bar")
 	page:Checkbox({ key = p .. "PowerShow", label = "Show Resource Bar", tooltip = "The unit's mana, rage, energy or focus." })
 	OwnSize(page, p, "Power", "resource bar", "the health bar's")
 	Placement(page, p, "Power", "resource bar")
 	page:Dropdown({ key = p .. "PowerText", label = "Text", options = VALUE_TEXT })
 	page:Anchor({ key = p .. "PowerTextPoint", label = "Text Position" })
 
-	page:Header("Name Bar")
+	Section(page, unit, "Name", "Name Bar")
 	page:Checkbox({ key = p .. "NameShow", label = "Show Name Bar" })
 	OwnSize(page, p, "Name", "name bar", "the health bar's width")
 	Placement(page, p, "Name", "name bar")
@@ -351,7 +405,7 @@ local function UnitPage(page, unit)
 	page:Anchor({ key = p .. "LevelPoint", label = "Level Position", tooltip = "Where the level sits on the name bar." })
 	Offsets(page, p .. "Level", "level", -100, 100)
 
-	page:Header("Portrait")
+	Section(page, unit, "Portrait", "Portrait")
 	page:Checkbox({ key = p .. "PortraitShow", label = "Show Portrait", tooltip = "The unit's 3D portrait." })
 	page:Checkbox({ key = p .. "PortraitClass", label = "Class Icon Instead",
 		tooltip = "Players' class icon in place of the portrait (the portrait stays for others)." })
@@ -369,7 +423,7 @@ local function UnitPage(page, unit)
 			.. "beside, TOP and BOTTOM above or below, CENTER on top." })
 	Offsets(page, p .. "Portrait", "portrait")
 
-	page:Header("Cast Bar")
+	Section(page, unit, "Cast", "Cast Bar")
 	page:Checkbox({ key = p .. "CastShow", label = "Show Cast Bar",
 		tooltip = "What the unit is casting, over the resource bar (over the health bar's bottom without one)." })
 	page:Checkbox({ key = p .. "CastSeparate", label = "Separate Bar",
@@ -390,7 +444,7 @@ local function UnitPage(page, unit)
 	end
 
 	if unit.auras then
-		page:Header("Buffs and Debuffs")
+		Section(page, unit, "Auras", "Buffs and Debuffs")
 		page:Text("Blizzard's own buffs and debuffs, moved onto this frame: buffs grow up from the top of the "
 			.. "name bar, debuffs down from the bottom of the resource bar.")
 		page:Checkbox({ key = p .. "BuffShow", label = "Show Buffs" })

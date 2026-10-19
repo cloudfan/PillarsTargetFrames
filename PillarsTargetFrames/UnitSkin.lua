@@ -376,7 +376,15 @@ Skin.__index = Skin
 local skins = {}
 ns.skins = skins
 
+-- A setting of this frame. Focus and target of target take the target
+-- frame's value for a section until its Override toggle is checked.
 function Skin:Get(key)
+	if self.spec.inherit then
+		local section = ns.SectionOf(key)
+		if section and not settings[self.prefix .. "Override" .. section] then
+			return settings["tf" .. key]
+		end
+	end
 	return settings[self.prefix .. key]
 end
 
@@ -488,6 +496,17 @@ function Skin:Create()
 	local portrait = CreateFrame("Frame", nil, holder)
 	portrait.model = CreateFrame("PlayerModel", nil, portrait)
 	portrait.model:SetAllPoints(portrait)
+	-- A model given its unit while hidden can stay blank: give it again
+	-- whenever it shows.
+	local unit = self.unit
+	portrait.model:SetScript("OnShow", function(model)
+		if Plain(UnitExists(unit)) ~= false then
+			model:SetUnit(unit)
+			if model.SetPortraitZoom then
+				model:SetPortraitZoom(1)
+			end
+		end
+	end)
 	portrait.class = portrait:CreateTexture(nil, "ARTWORK")
 	portrait.class:SetAllPoints(portrait)
 	parts.portrait = portrait
@@ -1033,10 +1052,11 @@ function Skin:UpdatePortrait()
 	end
 	local portrait, unit = self.parts.portrait, self.unit
 	local token = self:Get("PortraitClass") and ClassToken(unit)
-	local coords = token and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[token]
-	portrait.class:SetShown(coords ~= nil)
-	portrait.model:SetShown(coords == nil)
-	if coords then
+	local coords = token and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[token] or nil
+	local useClass = coords ~= nil
+	portrait.class:SetShown(useClass)
+	portrait.model:SetShown(not useClass)
+	if useClass then
 		local left, right, top, bottom = unpack(coords)
 		local w, h = (right - left) * CROP, (bottom - top) * CROP
 		portrait.class:SetTexCoord(left + w, right - w, top + h, bottom - h)

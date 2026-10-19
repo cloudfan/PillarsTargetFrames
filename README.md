@@ -23,9 +23,12 @@ Settings are under Options → AddOns → Pillars Target Frames: General, then F
 
 Each frame has these settings under its prefix: `tf` (Target), `tot` (Target of Target), `ff` (Focus), `tp` (Target's Pet), so `tfHealthWidth`, `totHealthWidth` and so on. The defaults are one layout (the target's); the frames differ only where the last column says.
 
+Focus and Target of Target follow the Target page section by section. Each section on their pages (Health Bar, Resource Bar, Name Bar, Portrait, Cast Bar, and on Focus Buffs and Debuffs) starts with an **Override Target's ...** toggle (`ffOverrideHealth`, `totOverridePortrait` and so on). Unchecked, that section uses the Target page's settings; checked, the frame's own settings below it. A toggle starts checked where the frame's own defaults differ: Focus's Portrait; Target of Target's Portrait, Resource Bar and Cast Bar. Enable and the frame's offsets are always the frame's own. Target's Pet has its own settings throughout.
+
 | Key | Type | Default | Differs on | What it changes |
 |---|---|---|---|---|
 | `Enabled` | Checkbox (asks to reload) | `true` | | Show this frame; unchecked, Blizzard's comes back after a reload. |
+| `OverrideHealth`, `OverridePower`, `OverrideName`, `OverridePortrait`, `OverrideCast`, `OverrideAuras` | Checkboxes | `false` | Focus and ToT only. On by default: Focus `OverridePortrait`; ToT `OverridePortrait`, `OverridePower`, `OverrideCast`. Focus only: `OverrideAuras` | Use this frame's own settings for that section instead of the Target page's. |
 | `OffsetX`, `OffsetY` | Sliders −200 to 200 | `0`, `0` | | Moves the frame inside Blizzard's. (Target's Pet: `tpAnchor`, `tpX`, `tpY` below.) |
 | `HealthWidth`, `HealthHeight` | Sliders 20–400, 4–120 | `160`, `24` | Pet: `80`, `18` | Health bar size; the other bars match it unless they have their own size. |
 | `HealthColor` | Dropdown (health color, reaction, class color) | `color` | | Health Color from the Look page, the unit's reaction, or players' class colors. A secret reaction falls back to Health Color. |
@@ -40,7 +43,7 @@ Each frame has these settings under its prefix: `tf` (Target), `tot` (Target of 
 | `NameTextShow`, `NameTextPoint`, `NameTextX`, `NameTextY` | Checkbox, anchor, sliders | `true`, `LEFT`, `0`, `0` | | The unit's name on the name bar. |
 | `NameClassColor` | Checkbox | `false` | | Players' names in their class color instead of Text Color. |
 | `LevelShow`, `LevelPoint`, `LevelX`, `LevelY` | Checkbox, anchor, sliders | `true`, `RIGHT`, `0`, `0` | | The level on the name bar, in Blizzard's difficulty colors (?? in red far above you). |
-| `PortraitShow`, `PortraitClass` | Checkboxes | `true`, `false` | ToT, Focus: `PortraitShow` `false` | The 3D portrait, or players' class icon instead. |
+| `PortraitShow`, `PortraitClass` | Checkboxes | `true`, `false` | ToT, Focus: `PortraitShow` `false` | The unit's 3D portrait model, or players' class icon instead. |
 | `PortraitOwnSize`, `PortraitWidth`, `PortraitHeight` | Checkbox, sliders 10–200 | `false`, `66`, `66` | | Unchecked, the portrait is square and as tall as the name, health and resource bars together. |
 | `PortraitTarget`, `PortraitPoint`, `PortraitX`, `PortraitY` | Dropdown (all bars, health, resource, name bar), anchor, sliders | `bars`, `BOTTOMRIGHT`, `0`, `0` | | Where the portrait goes: by default beside the bars on the right, bottoms lined up. LEFT and RIGHT points put it beside, TOP and BOTTOM above or below. |
 | `CastShow` | Checkbox | `true` | ToT: `false` | The cast bar, over the resource bar at its size and place (over the health bar's bottom half without one). |

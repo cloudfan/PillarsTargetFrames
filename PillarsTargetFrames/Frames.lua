@@ -27,6 +27,7 @@ ns.NewUnitSkin({
 		return TargetFrame and TargetFrame.totFrame or TargetFrameToT
 	end,
 	small = true, -- Blizzard's frame's own pieces are made invisible
+	inherit = true, -- the Target page's settings until a section is overridden
 	poll = true, -- no events for targettarget
 })
 
@@ -39,6 +40,7 @@ ns.NewUnitSkin({
 		return FocusFrame
 	end,
 	auras = true,
+	inherit = true, -- the Target page's settings until a section is overridden
 	ownToT = true, -- Blizzard's focus frame's own target of target
 })
 

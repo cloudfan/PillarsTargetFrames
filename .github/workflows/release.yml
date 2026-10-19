@@ -49,6 +49,6 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "Pillars Target Frames ${TAG}" \
             --prerelease \
-            --notes "Pillars Target Frames for WoW: Forever (## Interface: 16001): target, target of target and focus frames, with Blizzard's frames made invisible. Not yet tested in-game; run /ptf probe on your build.
+            --notes "Pillars Target Frames for WoW: Forever (## Interface: 16001): target, target of target, focus and pet frames, with Blizzard's frames made invisible. Not yet tested in-game; run /ptf probe on your build.
 
           Requires ClaiibuAPI 1.8.0 or newer (https://github.com/cloudfan/ClaiibuAPI/releases). Unzip both into World of Warcraft\\_classic_beta_\\Interface\\AddOns\\ so you have AddOns\\PillarsTargetFrames\\ and AddOns\\ClaiibuAPI\\."

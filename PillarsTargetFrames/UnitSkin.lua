@@ -435,14 +435,18 @@ function Skin:BlizzardPieces()
 		end
 	end
 	if self.spec.small then
-		-- The target of target: our frame is its child, so its own pieces go,
-		-- at every level (its portrait sits deeper than its art).
+		-- The target of target and the pet: our frame is their child, so
+		-- their own pieces go, at every level (the portrait sits deeper than
+		-- the art). Anything holding auras is left alone: touching Blizzard's
+		-- aura buttons blocks its aura code (see CLAUDE.md).
 		local function Walk(owner, depth)
 			for _, region in ipairs({ owner:GetRegions() }) do
 				Add(region)
 			end
 			for _, child in ipairs({ owner:GetChildren() }) do
-				if child ~= self.holder and not Forbidden(child) then
+				local name = DebugName(child)
+				if child ~= self.holder and not Forbidden(child) and not Mentions(name, "buff")
+					and not Mentions(name, "aura") then
 					Add(child)
 					if depth < 4 then
 						Walk(child, depth + 1)
@@ -1752,6 +1756,15 @@ On("UNIT_TARGET", function(unit)
 	if unit == "target" then
 		RefreshUnits({ targettarget = true })
 	end
+end)
+-- Your pet came, went or changed.
+On("UNIT_PET", function(unit)
+	if unit == "player" then
+		RefreshUnits({ pet = true })
+	end
+end)
+On("PLAYER_ENTERING_WORLD", function()
+	RefreshUnits({ pet = true })
 end)
 
 -- Your combo points.

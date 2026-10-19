@@ -74,6 +74,7 @@ ns.UNITS = {
 	{ prefix = "tot", page = "Target of Target", unit = "targettarget", what = "target of target frame", inherit = true,
 		movable = true },
 	{ prefix = "ff", page = "Focus", unit = "focus", what = "focus frame", inherit = true },
+	{ prefix = "pf", page = "Pet", unit = "pet", what = "pet frame", inherit = true, movable = true },
 }
 
 -- Sections of a frame's settings. Frames with inherit = true use the
@@ -176,6 +177,7 @@ local OVERRIDES = {
 	tf = {},
 	tot = { PortraitShow = false, PowerShow = false, CastShow = false },
 	ff = { PortraitShow = false },
+	pf = { HealthWidth = 100, HealthHeight = 16, PortraitShow = false, CastShow = false, LevelShow = false },
 }
 
 local defaults = {
@@ -249,7 +251,7 @@ end
 
 local kit = API.Settings.New(addonName, {
 	title = "Pillars Target Frames",
-	description = "Target, target of target and focus frames in the Pillars look. Blizzard's own "
+	description = "Target, target of target, focus and pet frames in the Pillars look. Blizzard's own "
 		.. "frames are made invisible; their buffs and debuffs stay where Blizzard places them.",
 	features = {
 		"One layout for every frame: name bar, health bar, resource bar and portrait, with a short list of changes per frame.",
@@ -331,6 +333,9 @@ local function UnitPage(page, unit)
 	if unit.unit == "targettarget" then
 		page:Text("Shows when Blizzard's own target of target frame would: turn it on or off in Edit Mode "
 			.. "(the target frame's Target of Target option). It shows no buffs or debuffs.")
+	elseif unit.unit == "pet" then
+		page:Text("Your pet. Shows when Blizzard's own pet frame would (while you have a pet out); Blizzard's "
+			.. "pet frame is made invisible. It shows no buffs or debuffs of its own.")
 	else
 		page:Text("Blizzard's " .. what .. " is made invisible and this one shows in its place. Move it in Edit Mode.")
 	end
@@ -346,8 +351,8 @@ local function UnitPage(page, unit)
 		page:Anchor({ key = p .. "Point", label = "Screen Position",
 			tooltip = "The point of the screen the offsets count from. Edit Mode keeps it when you drag the frame." })
 		Offsets(page, p .. "Offset", "frame on the screen", -1500, 1500)
-		page:Button({ label = "", text = "Put Back by the Target Frame",
-			tooltip = "Move the frame back to its first place: where Blizzard's own frame was, or beside the target frame.",
+		page:Button({ label = "", text = "Put Back",
+			tooltip = "Move the frame back to its first place: where Blizzard's own frame was.",
 			onClick = function(kit) kit:Set(p .. "Placed", false) end })
 	else
 		page:Checkbox({ key = p .. "AboveBuffs", label = "Above Blizzard's Buffs",
@@ -439,9 +444,9 @@ local PAGES = {}
 
 PAGES["General"] = function(page)
 	page:Header("Pillars Target Frames")
-	page:Text("Target, target of target and focus frames in the Pillars look. Each frame has its "
+	page:Text("Target, target of target, focus and pet frames in the Pillars look. Each frame has its "
 		.. "own page; the Look page (border, background, bar texture, fonts and colors) is shared.\n"
-		.. "Blizzard's target, target of target and focus frames, and everything on them, are made invisible. "
+		.. "Blizzard's target, target of target, focus and pet frames, and everything on them, are made invisible. "
 		.. "The new frames show when Blizzard's would and move with them in Edit Mode. Blizzard's buffs and "
 		.. "debuffs stay where Blizzard places them: change Buffs on Top and their sizes in Edit Mode (target "
 		.. "frame), and line the new frame up with them using its offsets. The addon never moves them; on this "
@@ -491,6 +496,10 @@ PAGES["Look"] = function(page)
 	Color(page, { key = "textColor", label = "Text Color", presets = TINT_PRESETS })
 end
 
+PAGES["Pet"] = function(page)
+	UnitPage(page, ns.UNITS[4])
+end
+
 PAGES["Target"] = function(page)
 	UnitPage(page, ns.UNITS[1])
 end
@@ -499,7 +508,7 @@ PAGES["Target of Target"] = function(page)
 	UnitPage(page, ns.UNITS[2])
 end
 
-local PAGE_ORDER = { "General", "Focus", "Look", "Target", "Target of Target" }
+local PAGE_ORDER = { "General", "Focus", "Look", "Pet", "Target", "Target of Target" }
 
 -- The kit:Open index of each page: 1 is the landing page.
 ns.pageIndex = {}

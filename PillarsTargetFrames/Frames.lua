@@ -4,10 +4,10 @@ if not ns.kit then
 	return
 end
 
--- The three frames. Each lives inside Blizzard's frame for the unit, so it
+-- The four frames. Each lives inside Blizzard's frame for the unit, so it
 -- shows when Blizzard's would. The target and focus frames move with
--- Blizzard's in Edit Mode; the target of target has an Edit Mode box of its
--- own.
+-- Blizzard's in Edit Mode; the target of target and the pet have Edit Mode
+-- boxes of their own.
 
 ns.NewUnitSkin({
 	name = "Target",
@@ -42,4 +42,17 @@ ns.NewUnitSkin({
 	end,
 	inherit = true, -- the Target page's settings until a section is overridden
 	ownToT = true, -- Blizzard's focus frame's own target of target
+})
+
+-- Your pet: inside Blizzard's pet frame, which shows while you have one.
+ns.NewUnitSkin({
+	name = "Pet",
+	prefix = "pf",
+	unit = "pet",
+	frame = function()
+		return PetFrame
+	end,
+	small = true, -- Blizzard's frame's own pieces are made invisible
+	inherit = true, -- the Target page's settings until a section is overridden
+	movable = true, -- its own place, moved in Edit Mode
 })

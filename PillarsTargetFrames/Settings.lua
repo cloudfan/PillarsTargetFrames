@@ -103,6 +103,7 @@ end
 -- The layout: one design for every frame (the target frame's) ...
 local LAYOUT = {
 	Enabled = true,
+	AboveBuffs = true,
 	OffsetX = 0,
 	OffsetY = 0,
 	HealthWidth = 160,
@@ -349,7 +350,11 @@ local function UnitPage(page, unit)
 			tooltip = "Move the frame back to its first place: where Blizzard's own frame was, or beside the target frame.",
 			onClick = function(kit) kit:Set(p .. "Placed", false) end })
 	else
-		Offsets(page, p .. "Offset", "frame inside Blizzard's frame", -200, 200)
+		page:Checkbox({ key = p .. "AboveBuffs", label = "Above Blizzard's Buffs",
+			tooltip = "Put the frame just above Blizzard's buffs and debuffs, which stay where Blizzard shows "
+				.. "them (the addon cannot move them). With Buffs on Top in Edit Mode, just below them. The "
+				.. "offsets move it from there. Unchecked, the frame sits in the middle of Blizzard's frame." })
+		Offsets(page, p .. "Offset", "frame", -200, 200)
 	end
 
 	Section(page, unit, "Health", "Health Bar")

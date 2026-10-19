@@ -725,7 +725,7 @@ function Skin:PlaceSecure()
 			if skin.mover then
 				skin.mover:UpdateBounds()
 			end
-		else
+		elseif not skin:PlaceByBuffs() then
 			holder:SetPoint("CENTER", blizzard, "CENTER", skin:Get("OffsetX"), skin:Get("OffsetY"))
 		end
 		skin:CreateClicker()
@@ -741,6 +741,33 @@ function Skin:PlaceSecure()
 		skin.clicker:Show()
 		skin.clickerPlaced = true
 	end)
+end
+
+-- Next to Blizzard's buffs: the layout's bottom left just above the top
+-- left of Blizzard's buff container (where its first buff shows), or with
+-- Edit Mode's Buffs on Top, its top left just below the container. The
+-- container is only read as an anchor, never changed, so the frame follows
+-- it when Blizzard moves it. Returns false when there is no container.
+function Skin:PlaceByBuffs()
+	if self.spec.small or not self:Get("AboveBuffs") then
+		return false
+	end
+	local auras = self:AuraContainer()
+	if type(auras) ~= "table" or Forbidden(auras) then
+		return false
+	end
+	local extent, gap = self.extent, self.gap
+	-- Combo points and a separate cast bar hang below the bottom bar (see
+	-- Attach for the stack keys).
+	local bottomBar = self:Get("PowerShow") and self.parts.power or self.parts.health
+	local below = self.stack[tostring(bottomBar) .. "BOTTOM"] or 0
+	local x, y = self:Get("OffsetX"), self:Get("OffsetY")
+	if Plain(self:Blizzard().buffsOnTop) then
+		self.holder:SetPoint("CENTER", auras, "BOTTOMLEFT", -extent.left + x, -extent.top - gap + y)
+	else
+		self.holder:SetPoint("CENTER", auras, "TOPLEFT", -extent.left + x, -extent.bottom + below + gap + y)
+	end
+	return true
 end
 
 -- Layout ---------------------------------------------------------------------------------
@@ -789,7 +816,8 @@ function Skin:SetExtent(above, below, portraitSide, portraitWidth)
 	elseif portraitSide < 0 then
 		left = left - self.gap - portraitWidth
 	end
-	self.extent = { width = right - left, height = top - bottom, dx = -(left + right) / 2, dy = -(top + bottom) / 2 }
+	self.extent = { width = right - left, height = top - bottom, dx = -(left + right) / 2, dy = -(top + bottom) / 2,
+		left = left, right = right, top = top, bottom = bottom }
 end
 
 function Skin:LayoutPortrait(heights)

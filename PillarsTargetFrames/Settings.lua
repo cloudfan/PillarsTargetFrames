@@ -68,13 +68,12 @@ local PORTRAIT_TARGETS = {
 }
 
 -- The frames. Each has the same settings under its prefix (tfHealthWidth,
--- totHealthWidth, ...). auras: Blizzard's buffs and debuffs are moved onto
--- it; combo: your combo points show on it.
+-- totHealthWidth, ...). combo: your combo points show on it.
 ns.UNITS = {
-	{ prefix = "tf", page = "Target", unit = "target", what = "target frame", auras = true, combo = true },
+	{ prefix = "tf", page = "Target", unit = "target", what = "target frame", combo = true },
 	{ prefix = "tot", page = "Target of Target", unit = "targettarget", what = "target of target frame", inherit = true,
 		movable = true },
-	{ prefix = "ff", page = "Focus", unit = "focus", what = "focus frame", auras = true, inherit = true },
+	{ prefix = "ff", page = "Focus", unit = "focus", what = "focus frame", inherit = true },
 	{ prefix = "tp", page = "Target's Pet", unit = "targetpet", what = "target's pet frame", movable = true },
 }
 
@@ -88,7 +87,6 @@ ns.SECTIONS = {
 	{ key = "Name", label = "Name Bar", prefixes = { "Name", "Level" } },
 	{ key = "Portrait", label = "Portrait", prefixes = { "Portrait" } },
 	{ key = "Cast", label = "Cast Bar", prefixes = { "Cast" } },
-	{ key = "Auras", label = "Buffs and Debuffs", prefixes = { "Buff", "Debuff", "Aura" } },
 }
 
 -- The section a per-frame setting (without its prefix) belongs to, or nil.
@@ -163,22 +161,6 @@ local LAYOUT = {
 	CastText = true,
 }
 
-local AURA_LAYOUT = {
-	BuffShow = true,
-	BuffTarget = "name",
-	BuffPoint = "TOP",
-	BuffX = 0,
-	BuffY = 0,
-	BuffSize = 20,
-	DebuffShow = true,
-	DebuffTarget = "power",
-	DebuffPoint = "BOTTOM",
-	DebuffX = 0,
-	DebuffY = 0,
-	DebuffSize = 20,
-	AuraSpacing = 2,
-}
-
 local COMBO_LAYOUT = {
 	ComboShow = true,
 	ComboTarget = "power",
@@ -241,9 +223,6 @@ for _, unit in ipairs(ns.UNITS) do
 		end
 	end
 	Add(LAYOUT)
-	if unit.auras then
-		Add(AURA_LAYOUT)
-	end
 	if unit.combo then
 		Add(COMBO_LAYOUT)
 	end
@@ -258,15 +237,13 @@ for _, unit in ipairs(ns.UNITS) do
 	-- defaults change.
 	if unit.inherit then
 		for _, section in ipairs(ns.SECTIONS) do
-			if section.key ~= "Auras" or unit.auras then
-				local changed = false
-				for key in pairs(overrides) do
-					if ns.SectionOf(key) == section.key then
-						changed = true
-					end
+			local changed = false
+			for key in pairs(overrides) do
+				if ns.SectionOf(key) == section.key then
+					changed = true
 				end
-				defaults[unit.prefix .. "Override" .. section.key] = changed
 			end
+			defaults[unit.prefix .. "Override" .. section.key] = changed
 		end
 	end
 end
@@ -274,13 +251,13 @@ end
 local kit = API.Settings.New(addonName, {
 	title = "Pillars Target Frames",
 	description = "Target, target of target, focus and target's pet frames in the Pillars look. Blizzard's own "
-		.. "frames are made invisible; their buffs and debuffs are moved onto the new frames.",
+		.. "frames are made invisible; their buffs and debuffs stay where Blizzard places them.",
 	features = {
 		"One layout for every frame: name bar, health bar, resource bar and portrait, with a short list of changes per frame.",
 		"Every bar, the portrait, the cast bar and the combo points can be resized and attached to another bar at any anchor point.",
 		"Your combo points on the target frame, in round totem borders.",
 		"A cast bar over the resource bar, or a bar of its own that shows only while casting.",
-		"Blizzard's buffs above the name bar and debuffs below the resource bar.",
+		"Blizzard's own buffs and debuffs, left where Blizzard places them (set them in Edit Mode).",
 		"Dead units get a gray-blue background and a faded portrait.",
 		"Shared border, border tint, background, bar texture and fonts, with Custom colors.",
 	},
@@ -456,18 +433,6 @@ local function UnitPage(page, unit)
 		page:Slider({ key = p .. "ComboSpacing", label = "Spacing", min = -4, max = 20, step = 1, format = "%d" })
 	end
 
-	if unit.auras then
-		Section(page, unit, "Auras", "Buffs and Debuffs")
-		page:Text("Blizzard's own buffs and debuffs, moved onto this frame: buffs grow up from the top of the "
-			.. "name bar, debuffs down from the bottom of the resource bar.")
-		page:Checkbox({ key = p .. "BuffShow", label = "Show Buffs" })
-		Placement(page, p, "Buff", "buffs")
-		page:Slider({ key = p .. "BuffSize", label = "Buff Size", min = 10, max = 48, step = 1, format = "%d" })
-		page:Checkbox({ key = p .. "DebuffShow", label = "Show Debuffs" })
-		Placement(page, p, "Debuff", "debuffs")
-		page:Slider({ key = p .. "DebuffSize", label = "Debuff Size", min = 10, max = 48, step = 1, format = "%d" })
-		page:Slider({ key = p .. "AuraSpacing", label = "Spacing", min = 0, max = 10, step = 1, format = "%d" })
-	end
 end
 
 local PAGES = {}
@@ -478,8 +443,10 @@ PAGES["General"] = function(page)
 		.. "own page; the Look page (border, background, bar texture, fonts and colors) is shared.\n"
 		.. "Blizzard's target, target of target and focus frames, and everything on them, are made invisible. "
 		.. "The new frames show when Blizzard's would and move with them in Edit Mode. Blizzard's buffs and "
-		.. "debuffs are moved onto the new frames; the threat number and other things the client keeps from "
-		.. "addons are not shown.\n"
+		.. "debuffs stay where Blizzard places them: change Buffs on Top and their sizes in Edit Mode (target "
+		.. "frame), and line the new frame up with them using its offsets. The addon never moves them; on this "
+		.. "client that blocks Blizzard's code (chat's Enter key stops working). The threat number and other "
+		.. "things the client keeps from addons are not shown.\n"
 		.. "Left-click a frame to target the unit, right-click for its menu. Turning a frame off brings "
 		.. "Blizzard's back after a reload.")
 	page:Button({ label = "", text = "Diagnostics",

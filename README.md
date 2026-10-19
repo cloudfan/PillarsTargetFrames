@@ -7,13 +7,13 @@ Target, target of target, focus and target's pet frames for World of Warcraft: F
 - One layout for every frame: name bar, health bar, resource bar and portrait, with a short list of changes per frame. Every bar, the portrait, the cast bar and the combo points can be resized and attached to another bar at any anchor point.
 - Your combo points on the target frame (rogues, and druids in cat form), in round totem borders tinted with the Border Tint.
 - A cast bar over the resource bar, or a bar of its own that shows only while casting.
-- Blizzard's buffs above the name bar, growing up, and debuffs below the resource bar, growing down.
+- Blizzard's own buffs and debuffs, left where Blizzard places them (Buffs on Top and their sizes are in Edit Mode, under the target and focus frames).
 - Dead units get a gray-blue background (`0.4, 0.47, 0.6` at 75%) and a portrait at 30% opacity.
 - Shared border, border tint, background, background color, bar texture, font, font size, shadow and colors, each color with presets and Custom... (Blizzard's color picker).
 
-Blizzard's target, target of target and focus frames (the focus frame's own target of target too), and everything on them (art, bars, text, cast bar, flashes, threat number), are made invisible. They keep running underneath: the new frames are their children, so they show when Blizzard's would (the target of target follows Blizzard's own Target of Target setting). The target and focus frames move with Blizzard's in Edit Mode (Blizzard's own highlight is left as it is). The target of target and target's pet frames have their own boxes in Edit Mode (through ClaiibuAPI), labeled with their names, and start where Blizzard's target of target was and just left of the target frame. Blizzard has no frame for your target's pet, so that one is the addon's own, shown while the target has a pet. Portraits are 3D models held still on their first frame. If Blizzard keeps its buff and debuff buttons inside a piece of its frame that was made invisible, that piece is made visible again and its other parts are hidden instead. Blizzard's buttons are found through its aura pools, any other frame pool on the frame, its named buttons, or by looking through the frame for buttons with an icon and a cooldown. Left-click a frame to target the unit, right-click for its menu. The addon never changes Blizzard's protected frames or Edit Mode's own frames, which keeps them from tainting chat and other Blizzard code.
+Blizzard's target, target of target and focus frames (the focus frame's own target of target too), and everything on them (art, bars, text, cast bar, flashes, threat number), are made invisible. They keep running underneath: the new frames are their children, so they show when Blizzard's would (the target of target follows Blizzard's own Target of Target setting). The target and focus frames move with Blizzard's in Edit Mode (Blizzard's own highlight is left as it is). The target of target and target's pet frames have their own boxes in Edit Mode (through ClaiibuAPI), labeled with their names, and start where Blizzard's target of target was and just left of the target frame. Blizzard has no frame for your target's pet, so that one is the addon's own, shown while the target has a pet. Portraits are 3D models held still on their first frame. Blizzard's buff and debuff container (`TargetFrameContent.TargetFrameContentContextual.Auras` on build 70450) is left visible and never touched: on Forever, moving Blizzard's aura buttons blocks its aura code and spreads taint until a client restart (chat's Enter key stops working). Line the new frame up with them using its offsets. Left-click a frame to target the unit, right-click for its menu. The addon never changes Blizzard's protected frames or Edit Mode's own frames, which keeps them from tainting chat and other Blizzard code.
 
-Nothing the client keeps from addons is shown: there is no threat display, no aura reading of our own (Blizzard's buff and debuff buttons are moved instead), and a reaction, cast time or combo point count the client keeps secret is left out. Health, names and levels can be secret on Forever; they go straight to the bars and text.
+Nothing the client keeps from addons is shown: there is no threat display, no aura reading of our own, and a reaction, cast time or combo point count the client keeps secret is left out. Health, names and levels can be secret on Forever; they go straight to the bars and text.
 
 Settings are under Options → AddOns → Pillars Target Frames: General, then Focus, Look, Target, Target of Target and Target's Pet, and Profiles last (save, delete, export and import).
 
@@ -23,12 +23,12 @@ Settings are under Options → AddOns → Pillars Target Frames: General, then F
 
 Each frame has these settings under its prefix: `tf` (Target), `tot` (Target of Target), `ff` (Focus), `tp` (Target's Pet), so `tfHealthWidth`, `totHealthWidth` and so on. The defaults are one layout (the target's); the frames differ only where the last column says.
 
-Focus and Target of Target follow the Target page section by section. Each section on their pages (Health Bar, Resource Bar, Name Bar, Portrait, Cast Bar, and on Focus Buffs and Debuffs) starts with an **Override Target's ...** toggle (`ffOverrideHealth`, `totOverridePortrait` and so on). Unchecked, that section uses the Target page's settings; checked, the frame's own settings below it. A toggle starts checked where the frame's own defaults differ: Focus's Portrait; Target of Target's Portrait, Resource Bar and Cast Bar. Enable and the frame's offsets are always the frame's own. Target's Pet has its own settings throughout.
+Focus and Target of Target follow the Target page section by section. Each section on their pages (Health Bar, Resource Bar, Name Bar, Portrait, Cast Bar) starts with an **Override Target's ...** toggle (`ffOverrideHealth`, `totOverridePortrait` and so on). Unchecked, that section uses the Target page's settings; checked, the frame's own settings below it. A toggle starts checked where the frame's own defaults differ: Focus's Portrait; Target of Target's Portrait, Resource Bar and Cast Bar. Enable and the frame's offsets are always the frame's own. Target's Pet has its own settings throughout.
 
 | Key | Type | Default | Differs on | What it changes |
 |---|---|---|---|---|
 | `Enabled` | Checkbox (asks to reload) | `true` | | Show this frame; unchecked, Blizzard's comes back after a reload. |
-| `OverrideHealth`, `OverridePower`, `OverrideName`, `OverridePortrait`, `OverrideCast`, `OverrideAuras` | Checkboxes | `false` | Focus and ToT only. On by default: Focus `OverridePortrait`; ToT `OverridePortrait`, `OverridePower`, `OverrideCast`. Focus only: `OverrideAuras` | Use this frame's own settings for that section instead of the Target page's. |
+| `OverrideHealth`, `OverridePower`, `OverrideName`, `OverridePortrait`, `OverrideCast` | Checkboxes | `false` | Focus and ToT only. On by default: Focus `OverridePortrait`; ToT `OverridePortrait`, `OverridePower`, `OverrideCast` | Use this frame's own settings for that section instead of the Target page's. |
 | `OffsetX`, `OffsetY` | Sliders −200 to 200 (−1500 to 1500 on ToT and Pet) | `0`, `0` | | Target and Focus: moves the frame inside Blizzard's. Target of Target and Target's Pet: the frame's place on the screen from `Point`, set by dragging it in Edit Mode. |
 | `Point`, `Placed` | Anchor, hidden flag | `CENTER`, `false` | ToT and Pet only | The screen point the offsets count from. `Placed` is set the first time the frame is put by Blizzard's target of target (or left of the target frame); **Put Back by the Target Frame** clears it. |
 | `HealthWidth`, `HealthHeight` | Sliders 20–400, 4–120 | `160`, `24` | Pet: `80`, `18` | Health bar size; the other bars match it unless they have their own size. |
@@ -55,11 +55,8 @@ Focus and Target of Target follow the Target page section by section. Each secti
 | `CastText` | Checkbox | `true` | | The spell's name on the cast bar. |
 | `ComboShow`, `ComboTarget`, `ComboPoint`, `ComboX`, `ComboY` | Checkbox, dropdown, anchor, sliders | `true`, `power`, `BOTTOM`, `0`, `0` | Target only | Your combo points, in the totem ring (`Interface\CharacterFrame\TotemBorder`). |
 | `ComboSize`, `ComboSpacing` | Sliders 8–40, −4 to 20 | `16`, `4` | Target only | Size of each point and the space between them. |
-| `BuffShow`, `BuffTarget`, `BuffPoint`, `BuffX`, `BuffY`, `BuffSize` | Checkbox, dropdown, anchor, sliders, slider 10–48 | `true`, `name`, `TOP`, `0`, `0`, `20` | Target and Focus only | Blizzard's buff buttons, in rows as wide as the health bar, growing up. |
-| `DebuffShow`, `DebuffTarget`, `DebuffPoint`, `DebuffX`, `DebuffY`, `DebuffSize` | Checkbox, dropdown, anchor, sliders, slider 10–48 | `true`, `power`, `BOTTOM`, `0`, `0`, `20` | Target and Focus only | Blizzard's debuff buttons, growing down. |
-| `AuraSpacing` | Slider 0–10 | `2` | Target and Focus only | Space between buffs and debuffs. |
 
-Boxes attached to the same side of the same bar stack outward in this order: combo points, the separate cast bar, debuffs. The target of target shows no buffs or debuffs; the target's pet has none either (Blizzard has no buttons for it).
+Boxes attached to the same side of the same bar stack outward in this order: combo points, then the separate cast bar. The target of target and target's pet frames show no buffs or debuffs.
 
 ### Look (shared)
 
@@ -82,7 +79,7 @@ Boxes attached to the same side of the same bar stack outward in this order: com
 
 ## Not yet tested in-game
 
-Written against the Mainline frame layout Forever shares, with fallbacks for the old named frames. `/ptf probe` reports what your build has: `FocusFrame`, Blizzard's aura buttons (`auraPools` or named buttons), the cast duration helpers used when cast times are secret, the unit watch for the target's pet, where Blizzard keeps its first buff button and how visible it is, the frame pools, aura fields and children of Blizzard's target and focus frames (to find buff buttons on a new build), and the Edit Mode boxes.
+Written against the Mainline frame layout Forever shares, with fallbacks for the old named frames. `/ptf probe` reports what your build has: `FocusFrame`, the cast duration helpers used when cast times are secret, the unit watch for the target's pet, whether Blizzard's buff container shows, the actions the client blocked this session, and the Edit Mode boxes.
 
 ## Install
 

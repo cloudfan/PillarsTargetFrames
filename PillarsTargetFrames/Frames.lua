@@ -15,7 +15,6 @@ ns.NewUnitSkin({
 	frame = function()
 		return TargetFrame
 	end,
-	auras = true,
 	combo = true,
 })
 
@@ -40,7 +39,6 @@ ns.NewUnitSkin({
 	frame = function()
 		return FocusFrame
 	end,
-	auras = true,
 	inherit = true, -- the Target page's settings until a section is overridden
 	ownToT = true, -- Blizzard's focus frame's own target of target
 })

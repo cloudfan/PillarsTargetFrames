@@ -6,12 +6,10 @@ end
 
 -- The unit frames. One layout for every frame:
 --
---   [ buffs, growing up    ]
 --   [ name           level ]
 --   [ health bar           ] [      ]
 --   [ resource bar / cast  ] [portr.]
 --   [ combo points         ]
---   [ debuffs, growing down]
 --
 -- The bars are our own status bars, fed by the client; health, power and
 -- names can be secret values on Forever and go straight into SetValue,
@@ -20,7 +18,9 @@ end
 -- combat) but keep running: our frames are their children, so they show
 -- when Blizzard's would (the target of target follows Blizzard's own
 -- setting) and move with them in Edit Mode. Blizzard's buff and debuff
--- buttons, which addons cannot rebuild in combat, are moved onto our frames.
+-- buttons are never touched: on Forever, moving them blocks Blizzard's aura
+-- code and spreads taint (chat's Enter key stops working). Their container
+-- is left visible, so they show where Blizzard places them.
 -- The target's pet has no Blizzard frame: its frame is ours, shown by a
 -- unit watch. Clicks go to secure buttons of our own over each layout.
 --
@@ -351,7 +351,6 @@ end
 -- animate their alpha), and no mouse (out of combat).
 
 local invisible = {}
-local uncovered = {} -- pieces that hold Blizzard's buff buttons (see Uncover)
 local settingAlpha = false
 
 local function KeepInvisible(region, alpha)
@@ -366,7 +365,7 @@ local function KeepInvisible(region, alpha)
 end
 
 local function MakeInvisible(region)
-	if type(region) ~= "table" or Forbidden(region) or not region.SetAlpha or uncovered[region] then
+	if type(region) ~= "table" or Forbidden(region) or not region.SetAlpha then
 		return false
 	end
 	if not invisible[region] then
@@ -448,7 +447,29 @@ function Skin:BlizzardPieces()
 		return list
 	end
 	Add(frame.TargetFrameContainer)
-	Add(frame.TargetFrameContent)
+	-- The content goes piece by piece: its Contextual part holds Blizzard's
+	-- buff and debuff container (Contextual.Auras on build 70450), which
+	-- must stay visible and untouched.
+	local content = frame.TargetFrameContent
+	if type(content) == "table" and content.GetRegions then
+		for _, region in ipairs({ content:GetRegions() }) do
+			Add(region)
+		end
+		for _, child in ipairs({ content:GetChildren() }) do
+			if child == content.TargetFrameContentContextual then
+				for _, region in ipairs({ child:GetRegions() }) do
+					Add(region)
+				end
+				for _, piece in ipairs({ child:GetChildren() }) do
+					if not self:IsAuraContainer(piece) then
+						Add(piece)
+					end
+				end
+			else
+				Add(child)
+			end
+		end
+	end
 	Add(frame.spellbar)
 	Add(frame.threatIndicator)
 	Add(frame.threatNumericIndicator)
@@ -461,6 +482,17 @@ function Skin:BlizzardPieces()
 		Add(frame.totFrame)
 	end
 	return list
+end
+
+-- Blizzard's buff and debuff container: never made invisible or touched.
+function Skin:AuraContainer()
+	local contextual = self:Blizzard().TargetFrameContent
+	contextual = type(contextual) == "table" and contextual.TargetFrameContentContextual
+	return type(contextual) == "table" and contextual.Auras or nil
+end
+
+function Skin:IsAuraContainer(frame)
+	return frame == self:AuraContainer() or Mentions(DebugName(frame), "aura")
 end
 
 function Skin:HideBlizzard()
@@ -558,8 +590,6 @@ function Skin:Create()
 	parts.combo = CreateFrame("Frame", nil, holder)
 	parts.combo.points = {}
 	parts.combo:Hide()
-	parts.buffAnchor = CreateFrame("Frame", nil, holder)
-	parts.debuffAnchor = CreateFrame("Frame", nil, holder)
 
 	-- Text sits on layers above the bars and portrait so nothing covers it.
 	local function Layer(level)
@@ -735,8 +765,7 @@ end
 
 -- Attaches frame to target outside its point side. Boxes attached to the
 -- same side of the same box stack outward in the order they are attached
--- (combo points, then the separate cast bar, then debuffs below the
--- resource bar).
+-- (combo points, then the separate cast bar below the resource bar).
 -- A hidden box is placed but takes no room.
 function Skin:Attach(frame, target, point, x, y, hidden)
 	local spec = OUTSIDE[point] or OUTSIDE.BOTTOM
@@ -959,7 +988,7 @@ function Skin:LayoutNow()
 
 	self:LayoutPortrait(heights)
 
-	-- Combo points, the separate cast bar, then the auras: in that order, so
+	-- Combo points, then the separate cast bar: in that order, so
 	-- they stack when attached to the same side of the same bar.
 	if self.spec.combo then
 		self:LayoutCombo()
@@ -996,15 +1025,6 @@ function Skin:LayoutNow()
 	cast:SetFrameLevel(math.max(power:GetFrameLevel(), health:GetFrameLevel()) + 4)
 	PlaceBox(parts.castBox, false)
 	parts.castText:SetAllPoints(cast)
-
-	if self.spec.auras then
-		for _, kind in ipairs({ "Buff", "Debuff" }) do
-			local anchor = parts[strlower(kind) .. "Anchor"]
-			anchor:SetSize(width, self:Get(kind .. "Size"))
-			self:Attach(anchor, self:Target(self:Get(kind .. "Target")), self:Get(kind .. "Point"),
-				self:Get(kind .. "X"), self:Get(kind .. "Y"))
-		end
-	end
 
 	-- Text: the shared font, shadow and size.
 	for _, fontString in pairs(texts) do
@@ -1303,369 +1323,6 @@ function Skin:UpdateCombo()
 	end
 end
 
--- Buffs and debuffs --------------------------------------------------------------------------
--- Blizzard's own buttons, moved after Blizzard places them: a grid on our
--- anchor, as wide as the health bar, growing away from the bar it is
--- attached to.
-
-local IsDebuffButton
-
-local function LooksLikeAura(frame)
-	if type(frame) ~= "table" or Forbidden(frame) then
-		return false
-	end
-	local ok, looks = pcall(function()
-		return (frame.Icon or frame.icon) ~= nil and (frame.Cooldown or frame.cooldown) ~= nil
-	end)
-	return ok and looks or false
-end
-
-IsDebuffButton = function(button)
-	local name = DebugName(button)
-	if Mentions(name, "debuff") then
-		return true
-	end
-	if Mentions(name, "buff") then
-		return false
-	end
-	return (button.Border or button.DebuffBorder) ~= nil
-end
-
--- Fields of Blizzard's frame that hand out frames (frame pools), by key.
-function Skin:FramePools()
-	local list = {}
-	local frame = self:Blizzard()
-	for key, value in pairs(frame) do
-		if type(key) == "string" and type(value) == "table" and type(value.EnumerateActive) == "function" then
-			list[#list + 1] = { key = key, pool = value }
-		end
-	end
-	return list
-end
-
--- Our own frames and Blizzard's pieces that hold no auras.
-function Skin:NotAuraHolders()
-	local skip = {}
-	for _, skin in ipairs(skins) do
-		skip[skin.holder or false] = true
-		skip[skin.root or false] = true
-		if skin ~= self then
-			skip[skin:Blizzard() or false] = true
-		end
-	end
-	local frame = self:Blizzard()
-	skip[frame.spellbar or false] = true
-	skip[frame.Selection or false] = true
-	skip[frame.totFrame or false] = true
-	return skip
-end
-
-function Skin:ScanAuras(owner, buffs, debuffs, depth, skip)
-	skip = skip or self:NotAuraHolders()
-	if depth == 0 then
-		self.forbiddenCount = 0
-	end
-	for _, child in ipairs({ owner:GetChildren() }) do
-		if Forbidden(child) then
-			self.forbiddenCount = (self.forbiddenCount or 0) + 1
-		elseif not skip[child] then
-			if LooksLikeAura(child) then
-				if child:IsShown() then
-					local list = IsDebuffButton(child) and debuffs or buffs
-					list[#list + 1] = child
-				end
-			elseif depth < 4 then
-				self:ScanAuras(child, buffs, debuffs, depth + 1, skip)
-			end
-		end
-	end
-end
-
--- For /ptf probe: what Blizzard's frame holds, to find where this build
--- keeps its buff buttons.
-function Skin:AuraReport()
-	local frame = self:Blizzard()
-	local rows = {}
-	local pools = {}
-	for _, entry in ipairs(self:FramePools()) do
-		pools[#pools + 1] = entry.key
-	end
-	rows[#rows + 1] = "Pools on the frame: " .. (#pools > 0 and table.concat(pools, ", ") or "none")
-	local fields = {}
-	for key, value in pairs(frame) do
-		if type(key) == "string" and (Mentions(key, "aura") or Mentions(key, "buff")) then
-			fields[#fields + 1] = key .. " (" .. type(value) .. ")"
-		end
-	end
-	table.sort(fields)
-	rows[#rows + 1] = "Aura fields on the frame: " .. (#fields > 0 and table.concat(fields, ", ") or "none")
-	local skip = self:NotAuraHolders()
-	local count = 0
-	local function Walk(owner, depth, indent)
-		for _, child in ipairs({ owner:GetChildren() }) do
-			if count >= 40 then
-				return
-			end
-			if Forbidden(child) then
-				count = count + 1
-				rows[#rows + 1] = indent .. "(a frame forbidden to addons)"
-			elseif not skip[child] then
-				count = count + 1
-				local keys = {}
-				for _, key in ipairs({ "Icon", "icon", "Cooldown", "cooldown", "Border", "Count", "count" }) do
-					if child[key] ~= nil then
-						keys[#keys + 1] = key
-					end
-				end
-				local width, height = child:GetWidth(), child:GetHeight()
-				local alpha = child.GetEffectiveAlpha and child:GetEffectiveAlpha()
-				rows[#rows + 1] = indent .. tostring(DebugName(child)) .. " [" .. tostring(child:GetObjectType()) .. "] "
-					.. (IsSecret(width) and "?" or format("%.0f", width or 0)) .. "x"
-					.. (IsSecret(height) and "?" or format("%.0f", height or 0)) .. ", shown " .. tostring(child:IsShown())
-					.. ", opacity " .. (IsSecret(alpha) and "secret" or tostring(alpha))
-					.. (#keys > 0 and (", has " .. table.concat(keys, " ")) or "")
-				if depth < 2 then
-					Walk(child, depth + 1, indent .. "  ")
-				end
-			end
-		end
-	end
-	rows[#rows + 1] = "Children of " .. tostring(DebugName(frame)) .. " (not ours):"
-	local ok, problem = pcall(Walk, frame, 0, "  ")
-	if not ok then
-		rows[#rows + 1] = "  (stopped: " .. tostring(problem) .. ")"
-	end
-	rows[#rows + 1] = "Frames forbidden to addons seen while looking for buffs: " .. tostring(self.forbiddenCount or 0)
-	return rows
-end
-
--- Blizzard's buff and debuff buttons in their order.
-function Skin:AuraButtons()
-	local frame = self:Blizzard()
-	local buffs, debuffs = {}, {}
-	local pools = frame.auraPools
-	if type(pools) == "table" and pools.EnumerateActiveByTemplate then
-		pcall(function()
-			for button in pools:EnumerateActiveByTemplate("TargetBuffFrameTemplate") do
-				buffs[#buffs + 1] = button
-			end
-			for button in pools:EnumerateActiveByTemplate("TargetDebuffFrameTemplate") do
-				debuffs[#debuffs + 1] = button
-			end
-		end)
-		self.auraSource = "aura pools"
-	end
-	-- Pools under other template names: every active button, debuffs told
-	-- apart by name or by the debuff border Blizzard gives them.
-	if #buffs == 0 and #debuffs == 0 and type(pools) == "table" and pools.EnumerateActive then
-		pcall(function()
-			for button in pools:EnumerateActive() do
-				local name = DebugName(button)
-				if Mentions(name, "debuff") or (button.Border and not Mentions(name, "buff")) then
-					debuffs[#debuffs + 1] = button
-				else
-					buffs[#buffs + 1] = button
-				end
-			end
-		end)
-		self.auraSource = "aura pools (all)"
-	end
-	-- Any other pool Blizzard keeps on the frame, whatever its name.
-	if #buffs == 0 and #debuffs == 0 then
-		for _, entry in ipairs(self:FramePools()) do
-			pcall(function()
-				for button in entry.pool:EnumerateActive() do
-					if type(button) == "table" and not Forbidden(button) and button:IsShown() then
-						local isDebuff = Mentions(entry.key, "debuff") or (not Mentions(entry.key, "buff")
-							and IsDebuffButton(button))
-						local list = isDebuff and debuffs or buffs
-						list[#list + 1] = button
-					end
-				end
-			end)
-		end
-		if #buffs + #debuffs > 0 then
-			self.auraSource = "pools on the frame"
-		end
-	end
-	-- Buttons that look like auras (an icon and a cooldown) anywhere in the
-	-- frame, outside our own frames and the target of target.
-	if #buffs == 0 and #debuffs == 0 then
-		self:ScanAuras(frame, buffs, debuffs, 0)
-		if #buffs + #debuffs > 0 then
-			self.auraSource = "found in the frame"
-		end
-	end
-	if #buffs == 0 and #debuffs == 0 then
-		local name = frame:GetName()
-		for _, pair in ipairs({ { "Buff", buffs }, { "Debuff", debuffs } }) do
-			for i = 1, 40 do
-				local button = name and _G[name .. pair[1] .. i]
-				if not button then
-					break
-				end
-				if button:IsShown() then
-					pair[2][#pair[2] + 1] = button
-				end
-			end
-		end
-		self.auraSource = self.auraSource or "named buttons"
-	end
-	-- Blizzard's order: by aura index, else where Blizzard put them (rows
-	-- from the top, left to right).
-	local function Order(list)
-		local keys = {}
-		for _, button in ipairs(list) do
-			local index = Plain(button.auraIndex) or Plain(button.GetID and button:GetID())
-			local top, left = button:GetTop(), button:GetLeft()
-			keys[button] = { type(index) == "number" and index or 1000, -(Plain(top) or 0), Plain(left) or 0 }
-		end
-		table.sort(list, function(a, b)
-			local ka, kb = keys[a], keys[b]
-			for i = 1, 3 do
-				if ka[i] ~= kb[i] then
-					return ka[i] < kb[i]
-				end
-			end
-			return false
-		end)
-	end
-	Order(buffs)
-	Order(debuffs)
-	return buffs, debuffs
-end
-
-function Skin:PlaceAuras(list, kind)
-	local show = self:Get(kind .. "Show")
-	local anchor = self.parts[strlower(kind) .. "Anchor"]
-	local size, spacing = self:Get(kind .. "Size"), self:Get("AuraSpacing")
-	local point = self:Get(kind .. "Point") or "TOP"
-	local up = (OUTSIDE[point] or OUTSIDE.TOP)[4] > 0
-	local perRow = math.max(1, math.floor((anchor:GetWidth() + spacing) / (size + spacing)))
-	local inCombat = InCombatLockdown()
-	for i, button in ipairs(list) do
-		if not show then
-			button:SetAlpha(0)
-			if not inCombat and button.EnableMouse then
-				button:EnableMouse(false)
-			end
-		else
-			button:SetAlpha(1)
-			if not inCombat and button.EnableMouse then
-				button:EnableMouse(true)
-			end
-			local row, column = math.floor((i - 1) / perRow), (i - 1) % perRow
-			local inRow = math.min(perRow, #list - row * perRow)
-			-- Rows centered, or from the side the point names.
-			local rowWidth = inRow * size + (inRow - 1) * spacing
-			local x
-			if point:find("LEFT") then
-				x = 0
-			elseif point:find("RIGHT") then
-				x = anchor:GetWidth() - rowWidth
-			else
-				x = (anchor:GetWidth() - rowWidth) / 2
-			end
-			x = x + column * (size + spacing)
-			local y = row * (size + spacing)
-			-- Scaled, so the button's own art (borders, count) keeps its shape;
-			-- offsets are in the button's scaled units.
-			local base = button:GetWidth()
-			local scale = (type(base) == "number" and base > 0) and size / base or 1
-			button:SetScale(scale)
-			button:ClearAllPoints()
-			if up then
-				button:SetPoint("BOTTOMLEFT", anchor, "BOTTOMLEFT", x / scale, y / scale)
-			else
-				button:SetPoint("TOPLEFT", anchor, "TOPLEFT", x / scale, -y / scale)
-			end
-		end
-	end
-end
-
--- Whether frame is one of the buttons or holds one.
-local function HoldsAny(frame, buttons)
-	for _, button in ipairs(buttons) do
-		local walk = button
-		while walk do
-			if walk == frame then
-				return true
-			end
-			walk = walk:GetParent()
-		end
-	end
-	return false
-end
-
--- Blizzard's buttons live inside its frame; if one sits in a piece that was
--- made invisible, that piece is made visible again and its other pieces
--- are made invisible instead, so the buttons show and the art does not.
-function Skin:Uncover(buttons)
-	local frame = self:Blizzard()
-	for _, button in ipairs(buttons) do
-		local chain, walk = {}, button:GetParent()
-		while walk and walk ~= frame and walk ~= UIParent do
-			chain[#chain + 1] = walk
-			walk = walk:GetParent()
-		end
-		for i = #chain, 1, -1 do
-			local piece = chain[i]
-			if invisible[piece] then
-				invisible[piece] = nil
-				uncovered[piece] = true
-				piece:SetAlpha(1)
-				self.uncovered = (self.uncovered or 0) + 1
-				for _, region in ipairs({ piece:GetRegions() }) do
-					MakeInvisible(region)
-				end
-				for _, child in ipairs({ piece:GetChildren() }) do
-					if not HoldsAny(child, buttons) and child ~= self.holder then
-						MakeInvisible(child)
-					end
-				end
-			end
-		end
-		-- A button made invisible itself (it was one of the pieces).
-		if invisible[button] then
-			invisible[button] = nil
-		end
-	end
-	-- For /ptf probe: where the first button lives and how visible it is.
-	local first = buttons[1]
-	if first then
-		local names, walk = {}, first:GetParent()
-		while walk and #names < 6 do
-			names[#names + 1] = tostring(DebugName(walk))
-			walk = walk:GetParent()
-		end
-		local alpha = first.GetEffectiveAlpha and first:GetEffectiveAlpha()
-		self.auraWhere = table.concat(names, " < ") .. ", opacity "
-			.. (IsSecret(alpha) and "secret" or tostring(alpha)) .. ", shown " .. tostring(first:IsVisible())
-	end
-end
-
-function Skin:ReanchorAuras()
-	if not (self:Ready() and self.spec.auras) then
-		return
-	end
-	local ok, problem = pcall(self.MoveAuras, self)
-	self.auraError = not ok and tostring(problem) or nil
-end
-
-function Skin:MoveAuras()
-	local buffs, debuffs = self:AuraButtons()
-	self.auraCounts = #buffs .. " buffs, " .. #debuffs .. " debuffs"
-	local all = {}
-	for _, list in ipairs({ buffs, debuffs }) do
-		for _, button in ipairs(list) do
-			all[#all + 1] = button
-		end
-	end
-	self:Uncover(all)
-	self:PlaceAuras(buffs, "Buff")
-	self:PlaceAuras(debuffs, "Debuff")
-end
-
 -- Refresh ----------------------------------------------------------------------------------
 
 -- Everything that depends on the unit: a new target, focus, target's target
@@ -1685,40 +1342,8 @@ function Skin:Refresh()
 	self:UpdatePower()
 	self:UpdateCast()
 	self:UpdateCombo()
-	self:ReanchorAuras()
 	if not self.clickerPlaced then
 		self:PlaceSecure()
-	end
-end
-
--- Hooks ------------------------------------------------------------------------------------
-
-function Skin:Hook()
-	if self.hooked or not self.spec.auras then
-		self.hooked = true
-		return
-	end
-	self.hooked = true
-	local skin, frame = self, self:Blizzard()
-	local function Reanchor()
-		if skin.active then
-			skin:ReanchorAuras()
-		end
-	end
-	-- After Blizzard places its buttons.
-	for _, method in ipairs({ "UpdateAuras", "UpdateAuraPositions" }) do
-		if type(frame[method]) == "function" then
-			hooksecurefunc(frame, method, Reanchor)
-		end
-	end
-	for _, name in ipairs({ "TargetFrame_UpdateAuras", "TargetFrame_UpdateAuraPositions" }) do
-		if type(_G[name]) == "function" then
-			hooksecurefunc(name, function(owner)
-				if owner == frame then
-					Reanchor()
-				end
-			end)
-		end
 	end
 end
 
@@ -1789,7 +1414,6 @@ function Skin:Apply(current)
 	self.missing = false
 	if self:Get("Enabled") then
 		self.active = true
-		self:Hook()
 		if self.spec.movable and not self:Get("Placed") then
 			self:PlaceFirst()
 		end
@@ -1834,20 +1458,13 @@ function Skin:Probe()
 		rows[#rows + 1] = "Combo points: " .. tostring(self.comboMode or "not shown") .. ", wanted: "
 			.. tostring(self.holder and self:ComboWanted() or false)
 	end
-	if self.spec.auras then
-		rows[#rows + 1] = "Auras: " .. tostring(self.auraCounts or "none seen") .. " from "
-			.. tostring(self.auraSource or "-") .. ", UpdateAuras hook: " .. ns.Has(frame and frame.UpdateAuras)
-			.. ", auraPools: " .. ns.Has(frame and frame.auraPools)
-		if self.auraError then
-			rows[#rows + 1] = "Moving auras failed: " .. self.auraError
-		end
-		rows[#rows + 1] = "First aura button in: " .. tostring(self.auraWhere or "-")
-			.. ", pieces made visible again for them: " .. tostring(self.uncovered or 0)
-		if frame then
-			for _, row in ipairs(self:AuraReport()) do
-				rows[#rows + 1] = row
-			end
-		end
+	local auras = not self.spec.small and not self.spec.pet and self:AuraContainer()
+	if auras then
+		local alpha = auras.GetEffectiveAlpha and auras:GetEffectiveAlpha()
+		rows[#rows + 1] = "Blizzard's buff container: shown " .. tostring(auras:IsVisible()) .. ", opacity "
+			.. (IsSecret(alpha) and "secret" or tostring(alpha)) .. " (left as Blizzard places it)"
+	elseif not self.spec.small and not self.spec.pet then
+		rows[#rows + 1] = "Blizzard's buff container: not found (TargetFrameContent.TargetFrameContentContextual.Auras)"
 	end
 	if self.root then
 		rows[#rows + 1] = "Edit Mode box: " .. (self.mover and "yes" or "no (needs ClaiibuAPI 1.4.0)")
@@ -1866,7 +1483,7 @@ end
 -- spec: name, prefix, unit, frame (function returning Blizzard's frame),
 -- small (the target of target: its own pieces are made invisible), pet (our
 -- own frame by a unit watch), ownToT (the frame has a target of target of
--- its own to make invisible), auras, combo, poll (no events for the unit),
+-- its own to make invisible), combo, poll (no events for the unit),
 -- inherit (the Target page's settings until a section is overridden),
 -- movable (its own place on the screen, with an Edit Mode box).
 function ns.NewUnitSkin(spec)
@@ -1934,16 +1551,6 @@ for event, method in pairs(UNIT_EVENTS) do
 		end
 	end)
 end
-
--- Blizzard places its buttons on UNIT_AURA too; ours move them the next
--- frame, after it.
-On("UNIT_AURA", function(unit)
-	for _, skin in ipairs(skins) do
-		if skin.active and skin.spec.auras and skin.unit == unit then
-			kit.events.Defer(skin.prefix .. "Auras", function() skin:ReanchorAuras() end)
-		end
-	end
-end)
 
 local function RefreshUnits(units)
 	for _, skin in ipairs(skins) do

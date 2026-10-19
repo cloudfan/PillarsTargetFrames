@@ -75,9 +75,13 @@ local function ProbeRows()
 		if features[i].probe then
 			rows[#rows + 1] = ""
 			rows[#rows + 1] = features[i].name .. ":"
-			local extra = features[i].probe()
+			-- One frame's probe failing must not take the rest with it.
+			local ok, extra = pcall(features[i].probe)
+			if not ok then
+				extra = { "probe error: " .. tostring(extra) }
+			end
 			for j = 1, #extra do
-				rows[#rows + 1] = "  " .. extra[j]
+				rows[#rows + 1] = "  " .. tostring(extra[j])
 			end
 		end
 	end
@@ -93,7 +97,11 @@ SlashCmdList.PILLARSTARGETFRAMES = function(msg)
 	local command = strlower(strtrim(msg or ""))
 	if command == "probe" then
 		if ns.kit.ShowCopy then
-			ns.kit:ShowCopy("Diagnostics", ProbeRows())
+			local ok, rows = pcall(ProbeRows)
+			if not ok then
+				rows = { "The probe failed: " .. tostring(rows) }
+			end
+			ns.kit:ShowCopy("Diagnostics", rows)
 		else
 			ns.kit:ShowProbe()
 		end

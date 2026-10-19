@@ -98,6 +98,15 @@ local function Mentions(text, word)
 	return type(text) == "string" and strlower(text):find(word, 1, true) ~= nil
 end
 
+-- Frames the client keeps from addons: touching one raises an error, so
+-- every frame of Blizzard's we walk is checked first.
+local function Forbidden(frame)
+	local ok, forbidden = pcall(function()
+		return frame.IsForbidden ~= nil and frame:IsForbidden()
+	end)
+	return not ok or forbidden and true or false
+end
+
 local function DebugName(region)
 	local ok, name = pcall(function()
 		return region.GetDebugName and region:GetDebugName() or region.GetName and region:GetName()
@@ -357,7 +366,7 @@ local function KeepInvisible(region, alpha)
 end
 
 local function MakeInvisible(region)
-	if type(region) ~= "table" or not region.SetAlpha or uncovered[region] then
+	if type(region) ~= "table" or Forbidden(region) or not region.SetAlpha or uncovered[region] then
 		return false
 	end
 	if not invisible[region] then
@@ -373,7 +382,7 @@ end
 local function NoMouse(key, frames)
 	kit.events.AfterCombat(key, function()
 		for _, frame in ipairs(frames) do
-			if type(frame) == "table" and frame.EnableMouse then
+			if type(frame) == "table" and not Forbidden(frame) and frame.EnableMouse then
 				frame:EnableMouse(false)
 			end
 		end
@@ -1313,7 +1322,13 @@ end
 local IsDebuffButton
 
 local function LooksLikeAura(frame)
-	return type(frame) == "table" and (frame.Icon or frame.icon) ~= nil and (frame.Cooldown or frame.cooldown) ~= nil
+	if type(frame) ~= "table" or Forbidden(frame) then
+		return false
+	end
+	local ok, looks = pcall(function()
+		return (frame.Icon or frame.icon) ~= nil and (frame.Cooldown or frame.cooldown) ~= nil
+	end)
+	return ok and looks or false
 end
 
 IsDebuffButton = function(button)
@@ -1358,8 +1373,13 @@ end
 
 function Skin:ScanAuras(owner, buffs, debuffs, depth, skip)
 	skip = skip or self:NotAuraHolders()
+	if depth == 0 then
+		self.forbiddenCount = 0
+	end
 	for _, child in ipairs({ owner:GetChildren() }) do
-		if not skip[child] then
+		if Forbidden(child) then
+			self.forbiddenCount = (self.forbiddenCount or 0) + 1
+		elseif not skip[child] then
 			if LooksLikeAura(child) then
 				if child:IsShown() then
 					local list = IsDebuffButton(child) and debuffs or buffs
@@ -1397,7 +1417,10 @@ function Skin:AuraReport()
 			if count >= 40 then
 				return
 			end
-			if not skip[child] then
+			if Forbidden(child) then
+				count = count + 1
+				rows[#rows + 1] = indent .. "(a frame forbidden to addons)"
+			elseif not skip[child] then
 				count = count + 1
 				local keys = {}
 				for _, key in ipairs({ "Icon", "icon", "Cooldown", "cooldown", "Border", "Count", "count" }) do
@@ -1419,7 +1442,11 @@ function Skin:AuraReport()
 		end
 	end
 	rows[#rows + 1] = "Children of " .. tostring(DebugName(frame)) .. " (not ours):"
-	Walk(frame, 0, "  ")
+	local ok, problem = pcall(Walk, frame, 0, "  ")
+	if not ok then
+		rows[#rows + 1] = "  (stopped: " .. tostring(problem) .. ")"
+	end
+	rows[#rows + 1] = "Frames forbidden to addons seen while looking for buffs: " .. tostring(self.forbiddenCount or 0)
 	return rows
 end
 
@@ -1459,7 +1486,7 @@ function Skin:AuraButtons()
 		for _, entry in ipairs(self:FramePools()) do
 			pcall(function()
 				for button in entry.pool:EnumerateActive() do
-					if type(button) == "table" and button.IsShown and button:IsShown() then
+					if type(button) == "table" and not Forbidden(button) and button:IsShown() then
 						local isDebuff = Mentions(entry.key, "debuff") or (not Mentions(entry.key, "buff")
 							and IsDebuffButton(button))
 						local list = isDebuff and debuffs or buffs
@@ -1632,6 +1659,11 @@ function Skin:ReanchorAuras()
 	if not (self:Ready() and self.spec.auras) then
 		return
 	end
+	local ok, problem = pcall(self.MoveAuras, self)
+	self.auraError = not ok and tostring(problem) or nil
+end
+
+function Skin:MoveAuras()
 	local buffs, debuffs = self:AuraButtons()
 	self.auraCounts = #buffs .. " buffs, " .. #debuffs .. " debuffs"
 	local all = {}
@@ -1876,6 +1908,9 @@ function Skin:Probe()
 		rows[#rows + 1] = "Auras: " .. tostring(self.auraCounts or "none seen") .. " from "
 			.. tostring(self.auraSource or "-") .. ", UpdateAuras hook: " .. ns.Has(frame and frame.UpdateAuras)
 			.. ", auraPools: " .. ns.Has(frame and frame.auraPools)
+		if self.auraError then
+			rows[#rows + 1] = "Moving auras failed: " .. self.auraError
+		end
 		rows[#rows + 1] = "First aura button in: " .. tostring(self.auraWhere or "-")
 			.. ", pieces made visible again for them: " .. tostring(self.uncovered or 0)
 		if frame then

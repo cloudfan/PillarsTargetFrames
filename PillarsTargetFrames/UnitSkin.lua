@@ -84,6 +84,16 @@ local BESIDE = {
 	BOTTOMRIGHT = { "BOTTOMLEFT", "BOTTOMRIGHT", 1, 0 },
 }
 
+-- Portraits hold still: the model is paused on its first frame, again
+-- whenever it loads a new unit.
+local function HoldStill(model)
+	if model.SetPaused then
+		model:SetPaused(true)
+	elseif model.FreezeAnimation then
+		model:FreezeAnimation(0, 0, 0)
+	end
+end
+
 local function Mentions(text, word)
 	return type(text) == "string" and strlower(text):find(word, 1, true) ~= nil
 end
@@ -332,6 +342,7 @@ end
 -- animate their alpha), and no mouse (out of combat).
 
 local invisible = {}
+local uncovered = {} -- pieces that hold Blizzard's buff buttons (see Uncover)
 local settingAlpha = false
 
 local function KeepInvisible(region, alpha)
@@ -346,7 +357,7 @@ local function KeepInvisible(region, alpha)
 end
 
 local function MakeInvisible(region)
-	if type(region) ~= "table" or not region.SetAlpha then
+	if type(region) ~= "table" or not region.SetAlpha or uncovered[region] then
 		return false
 	end
 	if not invisible[region] then
@@ -469,11 +480,19 @@ end
 function Skin:Create()
 	local blizzard = self:Blizzard()
 	local parent = blizzard
+	if self.spec.movable then
+		-- A plain frame on the screen that the frame is placed on, moved in
+		-- Edit Mode through ClaiibuAPI. It is as big as the layout, so Edit
+		-- Mode's box covers it even while the frame itself is hidden.
+		local root = CreateFrame("Frame", nil, UIParent)
+		root:SetSize(1, 1)
+		root:SetFrameStrata(blizzard:GetFrameStrata())
+		self.root = root
+	end
 	if self.spec.pet then
-		-- Shown by a unit watch while the target has a pet; a child of the
-		-- target frame, so it goes with the target.
-		local watcher = CreateFrame("Frame", nil, blizzard, "SecureHandlerStateTemplate")
-		watcher:SetSize(1, 1)
+		-- Shown by a unit watch while the target has a pet.
+		local watcher = CreateFrame("Frame", nil, self.root, "SecureHandlerStateTemplate")
+		watcher:SetAllPoints(self.root)
 		watcher:SetAttribute("unit", self.unit)
 		RegisterUnitWatch(watcher)
 		self.watcher = watcher
@@ -505,8 +524,10 @@ function Skin:Create()
 			if model.SetPortraitZoom then
 				model:SetPortraitZoom(1)
 			end
+			HoldStill(model)
 		end
 	end)
+	portrait.model:SetScript("OnModelLoaded", HoldStill)
 	portrait.class = portrait:CreateTexture(nil, "ARTWORK")
 	portrait.class:SetAllPoints(portrait)
 	parts.portrait = portrait
@@ -664,11 +685,16 @@ function Skin:PlaceSecure()
 		end
 		local holder, blizzard = skin.holder, skin:Blizzard()
 		holder:ClearAllPoints()
-		if skin.spec.pet then
-			local point = settings.tpAnchor or "LEFT"
-			skin.watcher:ClearAllPoints()
-			skin.watcher:SetPoint(point, blizzard, point, settings.tpX, settings.tpY)
-			holder:SetPoint("CENTER", skin.watcher, "CENTER")
+		if skin.root then
+			-- The target of target stays a child of Blizzard's frame (so it
+			-- shows when Blizzard's would) but sits on its own place.
+			local extent = skin.extent
+			skin.root:SetSize(extent.width, extent.height)
+			kit:ApplyAnchor(skin.root, skin.prefix .. "Point", skin.prefix .. "OffsetX", skin.prefix .. "OffsetY")
+			holder:SetPoint("CENTER", skin.root, "CENTER", extent.dx, extent.dy)
+			if skin.mover then
+				skin.mover:UpdateBounds()
+			end
 		else
 			holder:SetPoint("CENTER", blizzard, "CENTER", skin:Get("OffsetX"), skin:Get("OffsetY"))
 		end
@@ -685,7 +711,7 @@ function Skin:PlaceSecure()
 		skin.clicker:Show()
 		skin.clickerPlaced = true
 		-- Edit Mode's highlight covers our layout instead of the old frame.
-		local selection = not skin.spec.pet and blizzard.Selection
+		local selection = not skin.root and blizzard.Selection
 		if type(selection) == "table" and selection.SetPoint and not selection:IsProtected() then
 			selection:ClearAllPoints()
 			selection:SetPoint("BOTTOMLEFT", holder, "BOTTOMLEFT", x, y)
@@ -729,16 +755,24 @@ function Skin:Target(name, placed)
 	return parts.health, "health"
 end
 
+-- The layout's size around the health bar's center, for the box Edit Mode
+-- shows around a moved frame: width, height, and where the health bar's
+-- center sits from the box's center.
+function Skin:SetExtent(above, below, portraitSide, portraitWidth)
+	local width, height = self:Get("HealthWidth"), self:Get("HealthHeight")
+	local left, right = -width / 2, width / 2
+	local top, bottom = height / 2 + above, -(height / 2 + below)
+	if portraitSide > 0 then
+		right = right + self.gap + portraitWidth
+	elseif portraitSide < 0 then
+		left = left - self.gap - portraitWidth
+	end
+	self.extent = { width = right - left, height = top - bottom, dx = -(left + right) / 2, dy = -(top + bottom) / 2 }
+end
+
 function Skin:LayoutPortrait(heights)
 	local portrait = self.parts.portrait
-	local shown = self:Get("PortraitShow")
-	portrait:SetShown(shown)
-	if not shown then
-		return
-	end
 	local parts, gap = self.parts, self.gap
-	local point = self:Get("PortraitPoint") or "BOTTOMRIGHT"
-	local targetName = self:Get("PortraitTarget")
 	-- How far the name bar reaches above the health bar and the resource bar
 	-- below it, when they are attached there.
 	local above, below = 0, 0
@@ -748,6 +782,14 @@ function Skin:LayoutPortrait(heights)
 	if self:Get("PowerShow") and heights.powerTarget == "health" and heights.powerPoint:find("BOTTOM") then
 		below = gap + heights.power - self:Get("PowerY")
 	end
+	local shown = self:Get("PortraitShow")
+	portrait:SetShown(shown)
+	if not shown then
+		self:SetExtent(above, below, 0, 0)
+		return
+	end
+	local point = self:Get("PortraitPoint") or "BOTTOMRIGHT"
+	local targetName = self:Get("PortraitTarget")
 	local width, height
 	if self:Get("PortraitOwnSize") then
 		width, height = self:Get("PortraitWidth"), self:Get("PortraitHeight")
@@ -769,6 +811,7 @@ function Skin:LayoutPortrait(heights)
 		target = self:Target(targetName)
 	end
 	local spec = BESIDE[point] or BESIDE.BOTTOMRIGHT
+	self:SetExtent(above, below, (targetName == "bars" or targetName == "health") and spec[3] or 0, width)
 	portrait:ClearAllPoints()
 	portrait:SetPoint(spec[1], target, spec[2], spec[3] * gap + self:Get("PortraitX"),
 		spec[4] * gap + y + self:Get("PortraitY"))
@@ -808,6 +851,9 @@ function Skin:LayoutNow()
 			return
 		end
 		self:Create()
+		if self.root then
+			self:AddMover()
+		end
 	end
 	self:HideBlizzard()
 	local parts, texts = self.parts, self.texts
@@ -822,13 +868,7 @@ function Skin:LayoutNow()
 	local width, healthHeight = self:Get("HealthWidth"), self:Get("HealthHeight")
 	health:SetSize(width, healthHeight)
 	health:ClearAllPoints()
-	if self.spec.pet then
-		-- Placed outside the target frame's point (see PlaceSecure).
-		local spec = OUTSIDE[settings.tpAnchor] or OUTSIDE.LEFT
-		health:SetPoint(spec[1], self.holder, "CENTER", spec[3] * gap, spec[4] * gap)
-	else
-		health:SetPoint("CENTER", self.holder, "CENTER")
-	end
+	health:SetPoint("CENTER", self.holder, "CENTER")
 	health:SetStatusBarTexture(texture)
 	PlaceBox(parts.healthBox, self.dead)
 
@@ -1068,6 +1108,7 @@ function Skin:UpdatePortrait()
 		if portrait.model.SetCamDistanceScale then
 			portrait.model:SetCamDistanceScale(1)
 		end
+		HoldStill(portrait.model)
 	end
 end
 
@@ -1233,6 +1274,21 @@ function Skin:AuraButtons()
 		end)
 		self.auraSource = "aura pools"
 	end
+	-- Pools under other template names: every active button, debuffs told
+	-- apart by name or by the debuff border Blizzard gives them.
+	if #buffs == 0 and #debuffs == 0 and type(pools) == "table" and pools.EnumerateActive then
+		pcall(function()
+			for button in pools:EnumerateActive() do
+				local name = DebugName(button)
+				if Mentions(name, "debuff") or (button.Border and not Mentions(name, "buff")) then
+					debuffs[#debuffs + 1] = button
+				else
+					buffs[#buffs + 1] = button
+				end
+			end
+		end)
+		self.auraSource = "aura pools (all)"
+	end
 	if #buffs == 0 and #debuffs == 0 then
 		local name = frame:GetName()
 		for _, pair in ipairs({ { "Buff", buffs }, { "Debuff", debuffs } }) do
@@ -1320,12 +1376,80 @@ function Skin:PlaceAuras(list, kind)
 	end
 end
 
+-- Whether frame is one of the buttons or holds one.
+local function HoldsAny(frame, buttons)
+	for _, button in ipairs(buttons) do
+		local walk = button
+		while walk do
+			if walk == frame then
+				return true
+			end
+			walk = walk:GetParent()
+		end
+	end
+	return false
+end
+
+-- Blizzard's buttons live inside its frame; if one sits in a piece that was
+-- made invisible, that piece is made visible again and its other pieces
+-- are made invisible instead, so the buttons show and the art does not.
+function Skin:Uncover(buttons)
+	local frame = self:Blizzard()
+	for _, button in ipairs(buttons) do
+		local chain, walk = {}, button:GetParent()
+		while walk and walk ~= frame and walk ~= UIParent do
+			chain[#chain + 1] = walk
+			walk = walk:GetParent()
+		end
+		for i = #chain, 1, -1 do
+			local piece = chain[i]
+			if invisible[piece] then
+				invisible[piece] = nil
+				uncovered[piece] = true
+				piece:SetAlpha(1)
+				self.uncovered = (self.uncovered or 0) + 1
+				for _, region in ipairs({ piece:GetRegions() }) do
+					MakeInvisible(region)
+				end
+				for _, child in ipairs({ piece:GetChildren() }) do
+					if not HoldsAny(child, buttons) and child ~= self.holder then
+						MakeInvisible(child)
+					end
+				end
+			end
+		end
+		-- A button made invisible itself (it was one of the pieces).
+		if invisible[button] then
+			invisible[button] = nil
+		end
+	end
+	-- For /ptf probe: where the first button lives and how visible it is.
+	local first = buttons[1]
+	if first then
+		local names, walk = {}, first:GetParent()
+		while walk and #names < 6 do
+			names[#names + 1] = tostring(DebugName(walk))
+			walk = walk:GetParent()
+		end
+		local alpha = first.GetEffectiveAlpha and first:GetEffectiveAlpha()
+		self.auraWhere = table.concat(names, " < ") .. ", opacity "
+			.. (IsSecret(alpha) and "secret" or tostring(alpha)) .. ", shown " .. tostring(first:IsVisible())
+	end
+end
+
 function Skin:ReanchorAuras()
 	if not (self:Ready() and self.spec.auras) then
 		return
 	end
 	local buffs, debuffs = self:AuraButtons()
 	self.auraCounts = #buffs .. " buffs, " .. #debuffs .. " debuffs"
+	local all = {}
+	for _, list in ipairs({ buffs, debuffs }) do
+		for _, button in ipairs(list) do
+			all[#all + 1] = button
+		end
+	end
+	self:Uncover(all)
 	self:PlaceAuras(buffs, "Buff")
 	self:PlaceAuras(debuffs, "Debuff")
 end
@@ -1386,6 +1510,62 @@ function Skin:Hook()
 	end
 end
 
+-- Moved frames --------------------------------------------------------------------------
+
+-- Where a point of a frame is, as offsets from the screen's center.
+local function ScreenOffset(frame, point)
+	if not (frame and frame.GetCenter) then
+		return nil
+	end
+	local x, y = frame:GetCenter()
+	if point == "LEFT" then
+		x = frame:GetLeft()
+	end
+	if not (x and y) or IsSecret(x) or IsSecret(y) then
+		return nil
+	end
+	local scale = frame:GetEffectiveScale() / UIParent:GetEffectiveScale()
+	return x * scale - UIParent:GetWidth() / 2, y * scale - UIParent:GetHeight() / 2
+end
+
+-- The first time (or after "Put Back"): the target of target where
+-- Blizzard's was, the target's pet just left of the target frame.
+function Skin:PlaceFirst()
+	local skin = self
+	kit.events.Defer(self.prefix .. "PlaceFirst", function()
+		local x, y
+		if skin.spec.pet then
+			x, y = ScreenOffset(TargetFrame, "LEFT")
+			if x then
+				x = x - skin:Get("HealthWidth") / 2 - 60
+			end
+		else
+			x, y = ScreenOffset(skin:Blizzard())
+		end
+		-- Placed goes first, so the changes below do not come back here.
+		kit:Set(skin.prefix .. "Placed", true)
+		kit:Set(skin.prefix .. "Point", "CENTER")
+		kit:Set(skin.prefix .. "OffsetX", math.floor((x or 0) + 0.5))
+		kit:Set(skin.prefix .. "OffsetY", math.floor((y or 0) + 0.5))
+	end)
+end
+
+-- Its own box in Blizzard's Edit Mode (ClaiibuAPI 1.4.0 and newer).
+function Skin:AddMover()
+	if self.mover or not kit.AddEditMode then
+		return
+	end
+	local skin = self
+	self.mover = kit:AddEditMode({
+		frame = function() return skin.root end,
+		label = self.spec.name,
+		pointKey = self.prefix .. "Point",
+		xKey = self.prefix .. "OffsetX",
+		yKey = self.prefix .. "OffsetY",
+		regions = function() return { skin.root } end,
+	})
+end
+
 -- Apply and probe ------------------------------------------------------------------------
 
 function Skin:Apply(current)
@@ -1398,6 +1578,9 @@ function Skin:Apply(current)
 	if self:Get("Enabled") then
 		self.active = true
 		self:Hook()
+		if self.spec.movable and not self:Get("Placed") then
+			self:PlaceFirst()
+		end
 		self:Layout()
 	elseif self.active then
 		self.active = false
@@ -1443,6 +1626,17 @@ function Skin:Probe()
 		rows[#rows + 1] = "Auras: " .. tostring(self.auraCounts or "none seen") .. " from "
 			.. tostring(self.auraSource or "-") .. ", UpdateAuras hook: " .. ns.Has(frame and frame.UpdateAuras)
 			.. ", auraPools: " .. ns.Has(frame and frame.auraPools)
+		rows[#rows + 1] = "First aura button in: " .. tostring(self.auraWhere or "-")
+			.. ", pieces made visible again for them: " .. tostring(self.uncovered or 0)
+	end
+	if self.root then
+		rows[#rows + 1] = "Edit Mode box: " .. (self.mover and "yes" or "no (needs ClaiibuAPI 1.4.0)")
+			.. ", position " .. tostring(self:Get("Point")) .. " " .. tostring(self:Get("OffsetX")) .. ", "
+			.. tostring(self:Get("OffsetY"))
+		if self.watcher then
+			rows[#rows + 1] = "Unit watch frame shown: " .. tostring(self.watcher:IsShown()) .. ", targetpet exists: "
+				.. tostring(Plain(UnitExists(self.unit)))
+		end
 	end
 	rows[#rows + 1] = "Click button: " .. (self.clicker and "yes" or "no (made out of combat, once the frame shows)")
 		.. (self.spec.poll and (", refresh ticker: " .. (self.ticker and "running" or "stopped")) or "")
@@ -1452,7 +1646,9 @@ end
 -- spec: name, prefix, unit, frame (function returning Blizzard's frame),
 -- small (the target of target: its own pieces are made invisible), pet (our
 -- own frame by a unit watch), ownToT (the frame has a target of target of
--- its own to make invisible), auras, combo, poll (no events for the unit).
+-- its own to make invisible), auras, combo, poll (no events for the unit),
+-- inherit (the Target page's settings until a section is overridden),
+-- movable (its own place on the screen, with an Edit Mode box).
 function ns.NewUnitSkin(spec)
 	local skin = setmetatable({
 		spec = spec,

@@ -72,9 +72,10 @@ local PORTRAIT_TARGETS = {
 -- it; combo: your combo points show on it.
 ns.UNITS = {
 	{ prefix = "tf", page = "Target", unit = "target", what = "target frame", auras = true, combo = true },
-	{ prefix = "tot", page = "Target of Target", unit = "targettarget", what = "target of target frame", inherit = true },
+	{ prefix = "tot", page = "Target of Target", unit = "targettarget", what = "target of target frame", inherit = true,
+		movable = true },
 	{ prefix = "ff", page = "Focus", unit = "focus", what = "focus frame", auras = true, inherit = true },
-	{ prefix = "tp", page = "Target's Pet", unit = "targetpet", what = "target's pet frame" },
+	{ prefix = "tp", page = "Target's Pet", unit = "targetpet", what = "target's pet frame", movable = true },
 }
 
 -- Sections of a frame's settings. Frames with inherit = true use the
@@ -214,11 +215,6 @@ local defaults = {
 	focusColor = { r = 1, g = 0.5, b = 0.25, a = 1 },
 	castColor = { r = 1, g = 0.7, b = 0, a = 1 },
 	comboColor = { r = 1, g = 0.82, b = 0, a = 1 },
-	-- Target's pet: outside the left side of Blizzard's target frame, with
-	-- room for its portrait.
-	tpAnchor = "LEFT",
-	tpX = -55,
-	tpY = 0,
 }
 
 local function Copy(value)
@@ -249,6 +245,13 @@ for _, unit in ipairs(ns.UNITS) do
 	end
 	if unit.combo then
 		Add(COMBO_LAYOUT)
+	end
+	-- Frames moved in Edit Mode: OffsetX and OffsetY are from this point
+	-- on the screen. Placed is set once the frame has been put where
+	-- Blizzard's was (or next to the target frame), the first time it loads.
+	if unit.movable then
+		defaults[unit.prefix .. "Point"] = "CENTER"
+		defaults[unit.prefix .. "Placed"] = false
 	end
 	-- Override toggles: on by default for every section this frame's own
 	-- defaults change.
@@ -352,7 +355,7 @@ local function UnitPage(page, unit)
 		page:Text("Shows when Blizzard's own target of target frame would: turn it on or off in Edit Mode "
 			.. "(the target frame's Target of Target option). It shows no buffs or debuffs.")
 	elseif unit.unit == "targetpet" then
-		page:Text("Your target's pet, beside the target frame. Blizzard has no frame for it, so this one is "
+		page:Text("Your target's pet, shown while your target has one. Blizzard has no frame for it, so this one is "
 			.. "the addon's own; it shows no buffs or debuffs.")
 	else
 		page:Text("Blizzard's " .. what .. " is made invisible and this one shows in its place. Move it in Edit Mode.")
@@ -363,11 +366,15 @@ local function UnitPage(page, unit)
 	end
 	page:Checkbox({ key = p .. "Enabled", reload = true, label = "Enable",
 		tooltip = "Show this frame. Unchecked, Blizzard's frame comes back after a reload." })
-	if unit.unit == "targetpet" then
-		page:Anchor({ key = "tpAnchor", label = "Position",
-			tooltip = "Which side of Blizzard's target frame it goes outside: LEFT CENTER on its left, "
-				.. "BOTTOM CENTER below it, and so on." })
-		Offsets(page, "tp", "frame", -300, 300)
+	if unit.movable then
+		page:Text("Move it in Edit Mode (Escape → Edit Mode): it has its own box there, labeled " .. unit.page
+			.. ". Or set its place on the screen here.")
+		page:Anchor({ key = p .. "Point", label = "Screen Position",
+			tooltip = "The point of the screen the offsets count from. Edit Mode keeps it when you drag the frame." })
+		Offsets(page, p .. "Offset", "frame on the screen", -1500, 1500)
+		page:Button({ label = "", text = "Put Back by the Target Frame",
+			tooltip = "Move the frame back to its first place: where Blizzard's own frame was, or beside the target frame.",
+			onClick = function(kit) kit:Set(p .. "Placed", false) end })
 	else
 		Offsets(page, p .. "Offset", "frame inside Blizzard's frame", -200, 200)
 	end

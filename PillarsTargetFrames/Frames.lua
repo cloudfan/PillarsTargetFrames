@@ -28,6 +28,7 @@ ns.NewUnitSkin({
 	end,
 	small = true, -- Blizzard's frame's own pieces are made invisible
 	inherit = true, -- the Target page's settings until a section is overridden
+	movable = true, -- its own place, moved in Edit Mode
 	poll = true, -- no events for targettarget
 })
 
@@ -52,5 +53,6 @@ ns.NewUnitSkin({
 		return TargetFrame
 	end,
 	pet = true,
+	movable = true, -- its own place, moved in Edit Mode
 	poll = true, -- no events for targetpet
 })

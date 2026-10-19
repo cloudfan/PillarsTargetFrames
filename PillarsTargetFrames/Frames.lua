@@ -4,10 +4,9 @@ if not ns.kit then
 	return
 end
 
--- The three frames. x and y place the health bar in Blizzard's frame so the
--- default layout (bars plus portrait) sits where Blizzard's own art was:
--- Blizzard's target and focus frames have the portrait on the right, the
--- target of target on the left. The Offset settings move it from there.
+-- The four frames. Each lives inside Blizzard's frame for the unit, so it
+-- shows when Blizzard's would and moves with it in Edit Mode; the target's
+-- pet, which Blizzard has no frame for, is placed against the target frame.
 
 ns.NewUnitSkin({
 	name = "Target",
@@ -16,8 +15,8 @@ ns.NewUnitSkin({
 	frame = function()
 		return TargetFrame
 	end,
-	x = -40,
-	y = -4,
+	auras = true,
+	combo = true,
 })
 
 ns.NewUnitSkin({
@@ -27,10 +26,8 @@ ns.NewUnitSkin({
 	frame = function()
 		return TargetFrame and TargetFrame.totFrame or TargetFrameToT
 	end,
-	x = 26,
-	y = -4,
-	small = true, -- its own regions are its art
-	poll = true, -- no health events for targettarget
+	small = true, -- Blizzard's frame's own pieces are made invisible
+	poll = true, -- no events for targettarget
 })
 
 -- FocusFrame may not exist on every Forever build; /ptf probe says.
@@ -41,6 +38,17 @@ ns.NewUnitSkin({
 	frame = function()
 		return FocusFrame
 	end,
-	x = -40,
-	y = -4,
+	auras = true,
+	ownToT = true, -- Blizzard's focus frame's own target of target
+})
+
+ns.NewUnitSkin({
+	name = "Target's Pet",
+	prefix = "tp",
+	unit = "targetpet",
+	frame = function()
+		return TargetFrame
+	end,
+	pet = true,
+	poll = true, -- no events for targetpet
 })

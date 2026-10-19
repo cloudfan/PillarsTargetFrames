@@ -46,17 +46,18 @@ local function SharedRows()
 		"Build: " .. tostring(build) .. ", WOW_PROJECT_ID " .. tostring(WOW_PROJECT_ID)
 			.. (WOW_PROJECT_CAMELOT and (" (Camelot " .. tostring(WOW_PROJECT_CAMELOT) .. ")") or ""),
 		"TargetFrame: " .. ns.Has(TargetFrame) .. ", TargetFrame.totFrame: " .. ns.Has(TargetFrame and TargetFrame.totFrame)
-			.. ", TargetFrameToT: " .. ns.Has(TargetFrameToT) .. ", FocusFrame: " .. ns.Has(FocusFrame),
-		"SetPortraitTexture: " .. ns.Has(SetPortraitTexture) .. ", UnitSelectionColor: " .. ns.Has(UnitSelectionColor)
-			.. ", UnitReaction: " .. ns.Has(UnitReaction) .. ", FACTION_BAR_COLORS: " .. ns.Has(FACTION_BAR_COLORS),
-		"UnitIsTapDenied: " .. ns.Has(UnitIsTapDenied) .. ", UnitClassification: " .. ns.Has(UnitClassification)
-			.. ", GetRaidTargetIndex: " .. ns.Has(GetRaidTargetIndex),
+			.. ", TargetFrameToT: " .. ns.Has(TargetFrameToT) .. ", FocusFrame: " .. ns.Has(FocusFrame)
+			.. ", FocusFrame.totFrame: " .. ns.Has(FocusFrame and FocusFrame.totFrame),
+		"UnitReaction: " .. ns.Has(UnitReaction) .. ", FACTION_BAR_COLORS: " .. ns.Has(FACTION_BAR_COLORS),
 		"GetCreatureDifficultyColor: " .. ns.Has(GetCreatureDifficultyColor) .. ", GetQuestDifficultyColor: "
 			.. ns.Has(GetQuestDifficultyColor) .. ", UnitCanAttack: " .. ns.Has(UnitCanAttack),
 		"UnitHealthPercent: " .. ns.Has(UnitHealthPercent) .. ", UnitPowerPercent: " .. ns.Has(UnitPowerPercent)
 			.. ", CurveConstants.ScaleTo100: " .. ns.Has(CurveConstants and CurveConstants.ScaleTo100)
 			.. ", AbbreviateNumbers: " .. ns.Has(AbbreviateNumbers),
-		"UnitGetIncomingHeals: " .. ns.Has(UnitGetIncomingHeals) .. ", C_Timer.NewTicker: "
+		"UnitCastingInfo: " .. ns.Has(UnitCastingInfo) .. ", UnitChannelInfo: " .. ns.Has(UnitChannelInfo)
+			.. ", UnitCastingDuration: " .. ns.Has(UnitCastingDuration) .. ", RegisterUnitWatch: "
+			.. ns.Has(RegisterUnitWatch) .. ", GetComboPoints: " .. ns.Has(GetComboPoints),
+		"C_Timer.NewTicker: "
 			.. ns.Has(C_Timer and C_Timer.NewTicker) .. ", issecretvalue: " .. ns.Has(issecretvalue),
 		"Events that could not be registered: "
 			.. (#(ns.missingEvents or {}) > 0 and table.concat(ns.missingEvents, ", ") or "none"),
@@ -84,7 +85,7 @@ local function ProbeRows()
 end
 
 -- /ptf opens the settings; /ptf <page> opens a page by the start of its
--- name (/ptf focus, /ptf look); /ptf probe and /ptf profiles.
+-- name (/ptf focus, /ptf look, /ptf pet); /ptf probe and /ptf profiles.
 SLASH_PILLARSTARGETFRAMES1 = "/ptf"
 SLASH_PILLARSTARGETFRAMES2 = "/pillarstargetframes"
 SlashCmdList.PILLARSTARGETFRAMES = function(msg)
@@ -103,9 +104,12 @@ SlashCmdList.PILLARSTARGETFRAMES = function(msg)
 	elseif command ~= "" then
 		if command == "tot" then
 			command = "target of"
+		elseif command == "pet" then
+			command = "target's"
 		end
 		-- The shortest matching page name wins: /ptf target opens Target,
-		-- /ptf target of (or /ptf tot) opens Target of Target.
+		-- /ptf target of (or /ptf tot) opens Target of Target, /ptf pet
+		-- opens Target's Pet.
 		local best, bestLength
 		for name, index in pairs(ns.pageIndex) do
 			if strlower(name):find(command, 1, true) == 1 and (not bestLength or #name < bestLength) then

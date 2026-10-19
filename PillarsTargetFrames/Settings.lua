@@ -6,57 +6,44 @@ if not API then
 	return
 end
 
--- Border tints. "default" keeps the border's own color; "class" is the
--- unit's class color (players only, the border's own color otherwise).
-ns.TINTS = {
-	{ key = "default", label = "Border's Own" },
-	{ key = "gold", label = "Gold", color = { 1, 0.82, 0, 1 } },
-	{ key = "silver", label = "Silver", color = { 0.75, 0.75, 0.8, 1 } },
-	{ key = "bronze", label = "Bronze", color = { 0.8, 0.5, 0.2, 1 } },
-	{ key = "white", label = "White", color = { 1, 1, 1, 1 } },
-	{ key = "black", label = "Black", color = { 0, 0, 0, 1 } },
-	{ key = "red", label = "Red", color = { 0.8, 0.1, 0.1, 1 } },
-	{ key = "green", label = "Green", color = { 0.2, 0.8, 0.2, 1 } },
-	{ key = "blue", label = "Blue", color = { 0.2, 0.4, 1, 1 } },
-	{ key = "purple", label = "Purple", color = { 0.6, 0.3, 0.9, 1 } },
+-- Presets for the tint color settings. Each color setting's dropdown lists
+-- Default, these, then Custom... (Blizzard's color picker).
+local TINT_PRESETS = {
+	{ key = "black", label = "Black", r = 0, g = 0, b = 0 },
+	{ key = "white", label = "White", r = 1, g = 1, b = 1 },
+	{ key = "gold", label = "Gold", r = 1, g = 0.82, b = 0 },
+	{ key = "silver", label = "Silver", r = 0.75, g = 0.75, b = 0.8 },
+	{ key = "bronze", label = "Bronze", r = 0.8, g = 0.5, b = 0.2 },
+	{ key = "red", label = "Red", r = 0.8, g = 0.1, b = 0.1 },
+	{ key = "green", label = "Green", r = 0.2, g = 0.8, b = 0.2 },
+	{ key = "blue", label = "Blue", r = 0.2, g = 0.4, b = 1 },
+	{ key = "purple", label = "Purple", r = 0.6, g = 0.3, b = 0.9 },
 }
 
--- Background colors, the same as Pillars Player Frame's. "default" keeps the
--- background's own color.
-ns.BACKGROUND_COLORS = {
-	{ key = "default", label = "Default" },
-	{ key = "black", label = "Black", color = { 0, 0, 0, 1 } },
-	{ key = "charcoal", label = "Charcoal", color = { 0.08, 0.08, 0.08, 1 } },
-	{ key = "slate", label = "Slate", color = { 0.08, 0.1, 0.16, 1 } },
-	{ key = "deepred", label = "Deep Red", color = { 0.16, 0.04, 0.04, 1 } },
-	{ key = "forest", label = "Forest", color = { 0.05, 0.12, 0.06, 1 } },
-	{ key = "umber", label = "Umber", color = { 0.18, 0.12, 0.07, 1 } },
-	{ key = "midnight", label = "Midnight", color = { 0.03, 0.03, 0.08, 1 } },
-	{ key = "smoke", label = "Smoke", color = { 0, 0, 0, 0.35 } },
+-- Presets for the background color, the same as Pillars Player Frame's.
+local BACKGROUND_PRESETS = {
+	{ key = "black", label = "Black", r = 0, g = 0, b = 0 },
+	{ key = "charcoal", label = "Charcoal", r = 0.08, g = 0.08, b = 0.08 },
+	{ key = "slate", label = "Slate", r = 0.08, g = 0.1, b = 0.16 },
+	{ key = "deepred", label = "Deep Red", r = 0.16, g = 0.04, b = 0.04 },
+	{ key = "forest", label = "Forest", r = 0.05, g = 0.12, b = 0.06 },
+	{ key = "umber", label = "Umber", r = 0.18, g = 0.12, b = 0.07 },
+	{ key = "midnight", label = "Midnight", r = 0.03, g = 0.03, b = 0.08 },
 }
 
--- Bar colors, the same as Pillars Player Frame's.
-ns.BAR_COLORS = {
-	{ key = "green", label = "Green", color = { 0, 0.8, 0, 1 } }, -- Blizzard's health green
-	{ key = "red", label = "Red", color = { 0.85, 0.1, 0.1, 1 } },
-	{ key = "blue", label = "Blue", color = { 0, 0, 1, 1 } }, -- Blizzard's mana blue
-	{ key = "orange", label = "Orange", color = { 1, 0.5, 0.25, 1 } }, -- Blizzard's focus orange
-	{ key = "yellow", label = "Yellow", color = { 1, 1, 0, 1 } }, -- Blizzard's energy yellow
-	{ key = "purple", label = "Purple", color = { 0.6, 0.3, 0.9, 1 } },
-	{ key = "cyan", label = "Cyan", color = { 0.1, 0.8, 0.9, 1 } },
-	{ key = "white", label = "White", color = { 1, 1, 1, 1 } },
-	{ key = "gray", label = "Gray", color = { 0.5, 0.5, 0.5, 1 } },
-	{ key = "paleblue", label = "Pale Blue", color = { 0.7, 0.92, 1, 1 } }, -- #B3EBFF
+-- Presets for bar colors.
+local BAR_PRESETS = {
+	{ key = "green", label = "Green", r = 0, g = 0.8, b = 0 },
+	{ key = "red", label = "Red", r = 0.85, g = 0.1, b = 0.1 },
+	{ key = "blue", label = "Blue", r = 0, g = 0.35, b = 1 },
+	{ key = "orange", label = "Orange", r = 1, g = 0.5, b = 0.25 },
+	{ key = "yellow", label = "Yellow", r = 1, g = 0.85, b = 0.1 },
+	{ key = "gold", label = "Gold", r = 1, g = 0.7, b = 0 },
+	{ key = "purple", label = "Purple", r = 0.6, g = 0.3, b = 0.9 },
+	{ key = "cyan", label = "Cyan", r = 0.1, g = 0.8, b = 0.9 },
+	{ key = "white", label = "White", r = 1, g = 1, b = 1 },
+	{ key = "gray", label = "Gray", r = 0.5, g = 0.5, b = 0.5 },
 }
-
--- Health bar colors: the bar colors, plus the unit's reaction and class.
-local HEALTH_COLORS = {
-	{ key = "reaction", label = "Reaction (Hostile Red, Neutral Yellow, Friendly Green)" },
-	{ key = "class", label = "Class Color (Players), Reaction (NPCs)" },
-}
-for _, color in ipairs(ns.BAR_COLORS) do
-	HEALTH_COLORS[#HEALTH_COLORS + 1] = color
-end
 
 local VALUE_TEXT = {
 	{ key = "full", label = "Full Value" },
@@ -66,62 +53,147 @@ local VALUE_TEXT = {
 	{ key = "none", label = "None" },
 }
 
--- The three frames. Each has the same settings under its own prefix:
--- tfHealthWidth, totHealthWidth, ffHealthWidth.
-ns.UNITS = {
-	{ prefix = "tf", page = "Target", what = "target frame" },
-	{ prefix = "tot", page = "Target of Target", what = "target of target frame" },
-	{ prefix = "ff", page = "Focus", what = "focus frame" },
+-- What a bar can be attached to. "bars" is the name, health and resource
+-- bars together (the portrait's default).
+local BAR_TARGETS = {
+	{ key = "health", label = "Health Bar" },
+	{ key = "power", label = "Resource Bar" },
+	{ key = "name", label = "Name Bar" },
+}
+local PORTRAIT_TARGETS = {
+	{ key = "bars", label = "All Bars (Name, Health and Resource)" },
+	{ key = "health", label = "Health Bar" },
+	{ key = "power", label = "Resource Bar" },
+	{ key = "name", label = "Name Bar" },
 }
 
--- Per-frame defaults: the target frame's, with the target of target's
--- differences below.
-local UNIT_DEFAULTS = {
+-- The frames. Each has the same settings under its prefix (tfHealthWidth,
+-- totHealthWidth, ...). auras: Blizzard's buffs and debuffs are moved onto
+-- it; combo: your combo points show on it.
+ns.UNITS = {
+	{ prefix = "tf", page = "Target", unit = "target", what = "target frame", auras = true, combo = true },
+	{ prefix = "tot", page = "Target of Target", unit = "targettarget", what = "target of target frame" },
+	{ prefix = "ff", page = "Focus", unit = "focus", what = "focus frame", auras = true },
+	{ prefix = "tp", page = "Target's Pet", unit = "targetpet", what = "target's pet frame" },
+}
+
+-- The layout: one design for every frame (the target frame's) ...
+local LAYOUT = {
 	Enabled = true,
 	OffsetX = 0,
 	OffsetY = 0,
-	HealthWidth = 150,
-	HealthHeight = 26,
-	PowerHeight = 10,
-	NameHeight = 18,
-	FontSize = 12,
-	HealthColor = "green",
-	HealthTapped = true,
-	HealthText = "both",
-	HealthTextAnchor = "CENTER",
+	HealthWidth = 160,
+	HealthHeight = 24,
+	HealthColor = "color",
+	HealthText = "percent",
+	HealthTextPoint = "CENTER",
+	PowerShow = true,
+	PowerOwnSize = false,
+	PowerWidth = 160,
+	PowerHeight = 24,
+	PowerTarget = "health",
+	PowerPoint = "BOTTOM",
+	PowerX = 0,
+	PowerY = 0,
 	PowerText = "none",
-	HealPredict = true,
-	NameBar = "reaction",
-	NameText = "short",
-	NameAnchor = "CENTER",
-	NameColor = { r = 1, g = 0.82, b = 0, a = 1 }, -- Blizzard's gold
+	PowerTextPoint = "CENTER",
+	NameShow = true,
+	NameOwnSize = false,
+	NameWidth = 160,
+	NameHeight = 18,
+	NameTarget = "health",
+	NamePoint = "TOP",
+	NameX = 0,
+	NameY = 0,
+	NameTextShow = true,
+	NameTextPoint = "LEFT",
+	NameTextX = 0,
+	NameTextY = 0,
 	NameClassColor = false,
-	Level = true,
-	LevelPos = "badge",
-	LevelColor = true,
-	Portrait = "portrait",
-	PortraitShape = "round",
-	PortraitSide = "right",
-	PortraitFit = true,
-	PortraitSize = 60,
-	Classification = true,
-	RaidIcon = true,
-	RaidIconSize = 20,
+	LevelShow = true,
+	LevelPoint = "RIGHT",
+	LevelX = 0,
+	LevelY = 0,
+	PortraitShow = true,
+	PortraitClass = false,
+	PortraitOwnSize = false,
+	PortraitWidth = 66,
+	PortraitHeight = 66,
+	PortraitTarget = "bars",
+	PortraitPoint = "BOTTOMRIGHT",
+	PortraitX = 0,
+	PortraitY = 0,
+	CastShow = true,
+	CastSeparate = false,
+	CastHideIdle = true,
+	CastOwnSize = false,
+	CastWidth = 160,
+	CastHeight = 24,
+	CastTarget = "power",
+	CastPoint = "BOTTOM",
+	CastX = 0,
+	CastY = 0,
+	CastText = true,
 }
 
-local UNIT_OVERRIDES = {
-	tot = {
-		HealthWidth = 80,
-		HealthHeight = 12,
-		PowerHeight = 6,
-		NameHeight = 14,
-		FontSize = 10,
-		HealthText = "none",
-		NameAnchor = "LEFT",
-		Level = false,
-		PortraitSide = "left",
-		RaidIconSize = 14,
-	},
+local AURA_LAYOUT = {
+	BuffShow = true,
+	BuffTarget = "name",
+	BuffPoint = "TOP",
+	BuffX = 0,
+	BuffY = 0,
+	BuffSize = 20,
+	DebuffShow = true,
+	DebuffTarget = "power",
+	DebuffPoint = "BOTTOM",
+	DebuffX = 0,
+	DebuffY = 0,
+	DebuffSize = 20,
+	AuraSpacing = 2,
+}
+
+local COMBO_LAYOUT = {
+	ComboShow = true,
+	ComboTarget = "power",
+	ComboPoint = "BOTTOM",
+	ComboX = 0,
+	ComboY = 0,
+	ComboSize = 16,
+	ComboSpacing = 4,
+}
+
+-- ... and the short list of what each frame does differently.
+local OVERRIDES = {
+	tf = {},
+	tot = { PortraitShow = false, PowerShow = false, CastShow = false },
+	ff = { PortraitShow = false },
+	tp = { HealthWidth = 80, HealthHeight = 18, NameShow = false },
+}
+
+local defaults = {
+	barTexture = "flat",
+	border = "solid",
+	borderSize = 2,
+	borderInset = 0,
+	borderTint = { r = 0, g = 0, b = 0, a = 1 },
+	background = "solid",
+	backgroundColor = { r = 0.08, g = 0.08, b = 0.08, a = 0.8 },
+	font = "friz",
+	fontSize = 12,
+	fontShadow = "soft",
+	textColor = { r = 1, g = 1, b = 1, a = 1 },
+	healthColor = { r = 0, g = 0.8, b = 0, a = 1 },
+	manaColor = { r = 0, g = 0.35, b = 1, a = 1 },
+	rageColor = { r = 0.85, g = 0.1, b = 0.1, a = 1 },
+	energyColor = { r = 1, g = 0.85, b = 0.1, a = 1 },
+	focusColor = { r = 1, g = 0.5, b = 0.25, a = 1 },
+	castColor = { r = 1, g = 0.7, b = 0, a = 1 },
+	comboColor = { r = 1, g = 0.82, b = 0, a = 1 },
+	-- Target's pet: outside the left side of Blizzard's target frame, with
+	-- room for its portrait.
+	tpAnchor = "LEFT",
+	tpX = -55,
+	tpY = 0,
 }
 
 local function Copy(value)
@@ -135,51 +207,38 @@ local function Copy(value)
 	return copy
 end
 
-local defaults = {
-	barTexture = "blizzard",
-	border = "solid",
-	borderSize = 2,
-	borderInset = 0,
-	borderTint = "black",
-	font = "friz",
-	fontShadow = "soft",
-	healthBackground = "solid",
-	healthBgColor = "black",
-	healthBgOpacity = 50,
-	powerBackground = "solid",
-	powerBgColor = "black",
-	powerBgOpacity = 50,
-	nameBackground = "solid",
-	nameBgColor = "charcoal",
-	nameBgOpacity = 90,
-	manaColor = "blue",
-	rageColor = "red",
-	energyColor = "yellow",
-	focusColor = "orange",
-	healPredictColor = "paleblue",
-	healPredictOpacity = 60,
-}
 for _, unit in ipairs(ns.UNITS) do
-	local overrides = UNIT_OVERRIDES[unit.prefix] or {}
-	for key, value in pairs(UNIT_DEFAULTS) do
-		local own = overrides[key]
-		if own == nil then
-			own = value
+	local overrides = OVERRIDES[unit.prefix]
+	local function Add(list)
+		for key, value in pairs(list) do
+			local own = overrides[key]
+			if own == nil then
+				own = value
+			end
+			defaults[unit.prefix .. key] = Copy(own)
 		end
-		defaults[unit.prefix .. key] = Copy(own)
+	end
+	Add(LAYOUT)
+	if unit.auras then
+		Add(AURA_LAYOUT)
+	end
+	if unit.combo then
+		Add(COMBO_LAYOUT)
 	end
 end
 
 local kit = API.Settings.New(addonName, {
 	title = "Pillars Target Frames",
-	description = "A reskin of Blizzard's target, target of target and focus frames, laid out like the "
-		.. "default target frame. Each frame has its own page; the Look page is shared.",
+	description = "Target, target of target, focus and target's pet frames in the Pillars look. Blizzard's own "
+		.. "frames are made invisible; their buffs and debuffs are moved onto the new frames.",
 	features = {
-		"The target, target of target and focus frames, each with a portrait, a name bar, health and resource bars.",
-		"Blizzard's look: a round portrait, the name bar in the unit's reaction color, the level by difficulty.",
-		"Elite and rare units get a gold or silver ring; tapped units go gray; raid target icons on the portrait.",
-		"Health and resource text, incoming heals, and the dead and offline states.",
-		"Blizzard's buffs, debuffs, cast bars and Edit Mode positions are kept.",
+		"One layout for every frame: name bar, health bar, resource bar and portrait, with a short list of changes per frame.",
+		"Every bar, the portrait, the cast bar and the combo points can be resized and attached to another bar at any anchor point.",
+		"Your combo points on the target frame, in round totem borders.",
+		"A cast bar over the resource bar, or a bar of its own that shows only while casting.",
+		"Blizzard's buffs above the name bar and debuffs below the resource bar.",
+		"Dead units get a gray-blue background and a faded portrait.",
+		"Shared border, border tint, background, bar texture and fonts, with Custom colors.",
 	},
 	savedVariable = "PillarsTargetFramesDB",
 	charSavedVariable = "PillarsTargetFramesCharDB",
@@ -200,119 +259,164 @@ ns.kit = kit
 -- General first, then the rest in alphabetical order; ClaiibuAPI always adds
 -- Profiles after them. Open a page with ns.pageIndex["<Name>"].
 
--- Background, background color and opacity rows for a box.
-local function BackgroundRows(page, prefix, what)
-	page:MediaDropdown({ key = prefix .. "Background", mediaType = "background", label = what .. " Background" })
-	page:Dropdown({ key = prefix .. "BgColor", label = what .. " Background Color",
-		tooltip = "Color of the " .. strlower(what) .. " background. Default keeps the background's own color.",
-		options = ns.BACKGROUND_COLORS })
-	page:Slider({ key = prefix .. "BgOpacity", label = what .. " Background Opacity", min = 0, max = 100, step = 5,
-		format = "%d%%" })
+local function Color(page, spec)
+	if page.Color then
+		page:Color(spec)
+	end
 end
 
--- The settings of one frame. reload = true on the ones that move, resize or
--- re-enable Blizzard's bars.
+local function Offsets(page, key, what, min, max)
+	page:Slider({ key = key .. "X", label = "Horizontal Offset",
+		tooltip = "Moves the " .. what .. " right (positive) or left (negative).",
+		min = min or -100, max = max or 100, step = 1, format = "%d" })
+	page:Slider({ key = key .. "Y", label = "Vertical Offset",
+		tooltip = "Moves the " .. what .. " up (positive) or down (negative).",
+		min = min or -100, max = max or 100, step = 1, format = "%d" })
+end
+
+-- Attach To, Position and the offsets of a part of the frame.
+local function Placement(page, p, part, what, targets)
+	page:Dropdown({ key = p .. part .. "Target", label = "Attach To",
+		tooltip = "The bar the " .. what .. " is attached to.", options = targets or BAR_TARGETS })
+	page:Anchor({ key = p .. part .. "Point", label = "Position",
+		tooltip = "Where the " .. what .. " attaches: TOP CENTER puts it above, BOTTOM CENTER below, LEFT and "
+			.. "RIGHT beside it, CENTER on top of it." })
+	Offsets(page, p .. part, what)
+end
+
+-- Own Size and the two size sliders of a part that matches the health bar
+-- unless it has its own size.
+local function OwnSize(page, p, part, what, matches)
+	page:Checkbox({ key = p .. part .. "OwnSize", label = "Own Size",
+		tooltip = "Give the " .. what .. " its own size instead of " .. matches .. "." })
+	page:Slider({ key = p .. part .. "Width", label = "Width", tooltip = "Used when Own Size is checked.",
+		min = 20, max = 400, step = 1, format = "%d" })
+	page:Slider({ key = p .. part .. "Height", label = "Height", tooltip = "Used when Own Size is checked.",
+		min = 4, max = 120, step = 1, format = "%d" })
+end
+
 local function UnitPage(page, unit)
 	local p, what = unit.prefix, unit.what
 	page:Header(unit.page)
-	page:Text("Blizzard's " .. what .. " in the Pillars look. Blizzard's own buffs, debuffs and cast bar "
-		.. "stay where Blizzard puts them; move the whole frame in Edit Mode, or with the offsets below.")
-	page:Checkbox({ key = p .. "Enabled", reload = true, label = "Enable",
-		tooltip = "Reskin the " .. what .. ". Turning it off takes effect after a reload." })
-
-	page:Header("Size and Position")
-	page:Slider({ key = p .. "OffsetX", reload = true, label = "Horizontal Offset",
-		tooltip = "Moves the bars right (positive) or left (negative) inside Blizzard's frame, for instance away "
-			.. "from its buffs.", min = -100, max = 100, step = 1, format = "%d" })
-	page:Slider({ key = p .. "OffsetY", reload = true, label = "Vertical Offset",
-		tooltip = "Moves the bars up (positive) or down (negative) inside Blizzard's frame.",
-		min = -100, max = 100, step = 1, format = "%d" })
-	page:Slider({ key = p .. "HealthWidth", reload = true, label = "Width",
-		tooltip = "Width of the health bar; the name and resource bars match it.", min = 40, max = 400, step = 2, format = "%d" })
-	page:Slider({ key = p .. "HealthHeight", reload = true, label = "Health Bar Height", min = 6, max = 80, step = 1,
-		format = "%d" })
-	page:Slider({ key = p .. "PowerHeight", reload = true, label = "Resource Bar Height", min = 2, max = 40, step = 1,
-		format = "%d" })
-	page:Slider({ key = p .. "NameHeight", label = "Name Bar Height", min = 8, max = 40, step = 1, format = "%d" })
-	page:Slider({ key = p .. "FontSize", label = "Font Size", tooltip = "Size of all text on this frame.",
-		min = 6, max = 24, step = 1, format = "%d" })
-
-	page:Header("Health and Resource")
-	page:Dropdown({ key = p .. "HealthColor", label = "Health Color",
-		tooltip = "Color of the health bar. Blizzard's is Green. Reaction follows the name bar: hostile red, "
-			.. "neutral yellow, friendly green.", options = HEALTH_COLORS })
-	page:Checkbox({ key = p .. "HealthTapped", label = "Gray When Tapped",
-		tooltip = "Gray health bar and name bar for a unit someone else has tapped, as Blizzard's frame does." })
-	page:Dropdown({ key = p .. "HealthText", label = "Health Text", tooltip = "Text on the health bar.",
-		options = VALUE_TEXT })
-	page:Anchor({ key = p .. "HealthTextAnchor", label = "Health Text Position" })
-	page:Dropdown({ key = p .. "PowerText", label = "Resource Text",
-		tooltip = "Text on the resource bar: the unit's mana, rage, energy or focus.", options = VALUE_TEXT })
-	page:Checkbox({ key = p .. "HealPredict", label = "Incoming Heals",
-		tooltip = "Heals being cast on the unit as a lighter bar after its health. Blizzard's own incoming heal "
-			.. "display is hidden while the reskin is on; the color is on the Look page." })
-
-	page:Header("Name and Level")
-	page:Dropdown({ key = p .. "NameBar", label = "Name Bar Color",
-		tooltip = "Reaction is Blizzard's: hostile red, neutral yellow, friendly green, other players blue. "
-			.. "Class Color uses a player's class color. Background only shows the name bar background from the Look page.",
-		options = { { key = "reaction", label = "Reaction (Blizzard's)" }, { key = "class", label = "Class Color (Players)" },
-			{ key = "plain", label = "Background Only" } } })
-	page:Dropdown({ key = p .. "NameText", label = "Name",
-		options = { { key = "full", label = "Name and Realm" }, { key = "short", label = "Name Only" },
-			{ key = "none", label = "None" } } })
-	page:Anchor({ key = p .. "NameAnchor", label = "Name Position" })
-	if page.Color then
-		page:Color({ key = p .. "NameColor", label = "Name Color", tooltip = "Color of the name. Blizzard's is gold." })
+	if unit.unit == "targettarget" then
+		page:Text("Shows when Blizzard's own target of target frame would: turn it on or off in Edit Mode "
+			.. "(the target frame's Target of Target option). It shows no buffs or debuffs.")
+	elseif unit.unit == "targetpet" then
+		page:Text("Your target's pet, beside the target frame. Blizzard has no frame for it, so this one is "
+			.. "the addon's own; it shows no buffs or debuffs.")
+	else
+		page:Text("Blizzard's " .. what .. " is made invisible and this one shows in its place. Move it in Edit Mode.")
 	end
+	page:Checkbox({ key = p .. "Enabled", reload = true, label = "Enable",
+		tooltip = "Show this frame. Unchecked, Blizzard's frame comes back after a reload." })
+	if unit.unit == "targetpet" then
+		page:Anchor({ key = "tpAnchor", label = "Position",
+			tooltip = "Which side of Blizzard's target frame it goes outside: LEFT CENTER on its left, "
+				.. "BOTTOM CENTER below it, and so on." })
+		Offsets(page, "tp", "frame", -300, 300)
+	else
+		Offsets(page, p .. "Offset", "frame inside Blizzard's frame", -200, 200)
+	end
+
+	page:Header("Health Bar")
+	page:Slider({ key = p .. "HealthWidth", label = "Width",
+		tooltip = "Width of the health bar. The other bars match it unless they have their own size.",
+		min = 20, max = 400, step = 1, format = "%d" })
+	page:Slider({ key = p .. "HealthHeight", label = "Height", min = 4, max = 120, step = 1, format = "%d" })
+	page:Dropdown({ key = p .. "HealthColor", label = "Color",
+		tooltip = "Health Color from the Look page, the unit's reaction (hostile red, neutral yellow, friendly "
+			.. "green), or players' class colors. Where the client keeps the reaction secret, Health Color is used.",
+		options = { { key = "color", label = "Health Color" }, { key = "reaction", label = "Reaction" },
+			{ key = "class", label = "Class Color (Players)" } } })
+	page:Dropdown({ key = p .. "HealthText", label = "Text", options = VALUE_TEXT })
+	page:Anchor({ key = p .. "HealthTextPoint", label = "Text Position" })
+
+	page:Header("Resource Bar")
+	page:Checkbox({ key = p .. "PowerShow", label = "Show Resource Bar", tooltip = "The unit's mana, rage, energy or focus." })
+	OwnSize(page, p, "Power", "resource bar", "the health bar's")
+	Placement(page, p, "Power", "resource bar")
+	page:Dropdown({ key = p .. "PowerText", label = "Text", options = VALUE_TEXT })
+	page:Anchor({ key = p .. "PowerTextPoint", label = "Text Position" })
+
+	page:Header("Name Bar")
+	page:Checkbox({ key = p .. "NameShow", label = "Show Name Bar" })
+	OwnSize(page, p, "Name", "name bar", "the health bar's width")
+	Placement(page, p, "Name", "name bar")
+	page:Checkbox({ key = p .. "NameTextShow", label = "Show Name" })
+	page:Anchor({ key = p .. "NameTextPoint", label = "Name Position", tooltip = "Where the name sits on the name bar." })
+	Offsets(page, p .. "NameText", "name", -100, 100)
 	page:Checkbox({ key = p .. "NameClassColor", label = "Class Colored Name",
-		tooltip = "Players' names in their class color instead of Name Color." })
-	page:Checkbox({ key = p .. "Level", label = "Level", tooltip = "Show the unit's level." })
-	page:Dropdown({ key = p .. "LevelPos", label = "Level Position",
-		tooltip = "On the Portrait: in a small circle on the portrait's outer bottom corner, like the old target "
-			.. "frame. Without a portrait it goes on the name bar.",
-		options = { { key = "badge", label = "On the Portrait" }, { key = "name", label = "On the Name Bar" } } })
-	page:Checkbox({ key = p .. "LevelColor", label = "Color Level by Difficulty",
-		tooltip = "Enemies' levels in Blizzard's difficulty colors, gray to red; ?? for a level far above yours." })
+		tooltip = "Players' names in their class color instead of Text Color." })
+	page:Checkbox({ key = p .. "LevelShow", label = "Show Level" })
+	page:Anchor({ key = p .. "LevelPoint", label = "Level Position", tooltip = "Where the level sits on the name bar." })
+	Offsets(page, p .. "Level", "level", -100, 100)
 
 	page:Header("Portrait")
-	page:Dropdown({ key = p .. "Portrait", label = "Portrait",
-		tooltip = "Blizzard's round portrait picture, the 3D model (always square), the class icon for players "
-			.. "(the portrait for others), or none.",
-		options = { { key = "portrait", label = "Portrait (Blizzard's)" }, { key = "model", label = "3D Model" },
-			{ key = "class", label = "Class Icon" }, { key = "none", label = "None" } } })
-	page:Dropdown({ key = p .. "PortraitShape", label = "Shape",
-		tooltip = "Round: a ring in the Border Tint, as thick as Border Size. Square: the name bar's background "
-			.. "and the shared border.",
-		options = { { key = "round", label = "Round" }, { key = "square", label = "Square" } } })
-	page:Dropdown({ key = p .. "PortraitSide", label = "Side",
-		tooltip = "Which side of the bars the portrait is on. Blizzard's target and focus frames have it on the "
-			.. "right, the target of target on the left.",
-		options = { { key = "right", label = "Right" }, { key = "left", label = "Left" } } })
-	page:Checkbox({ key = p .. "PortraitFit", label = "Match Bar Height",
-		tooltip = "Make the portrait as tall as the name, health and resource bars together." })
-	page:Slider({ key = p .. "PortraitSize", label = "Size", tooltip = "Used when Match Bar Height is unchecked.",
-		min = 16, max = 140, step = 1, format = "%d" })
-	page:Checkbox({ key = p .. "Classification", label = "Elite and Rare Ring",
-		tooltip = "In place of Blizzard's dragon: a gold ring or border for elites and world bosses, silver for rares." })
-	page:Checkbox({ key = p .. "RaidIcon", label = "Raid Target Icon",
-		tooltip = "The unit's raid target icon (skull, cross and the rest) at the top of the portrait." })
-	page:Slider({ key = p .. "RaidIconSize", label = "Raid Target Icon Size", min = 8, max = 48, step = 1, format = "%d" })
+	page:Checkbox({ key = p .. "PortraitShow", label = "Show Portrait", tooltip = "The unit's 3D portrait." })
+	page:Checkbox({ key = p .. "PortraitClass", label = "Class Icon Instead",
+		tooltip = "Players' class icon in place of the portrait (the portrait stays for others)." })
+	page:Checkbox({ key = p .. "PortraitOwnSize", label = "Own Size",
+		tooltip = "Unchecked, the portrait is square and as tall as the name, health and resource bars together." })
+	page:Slider({ key = p .. "PortraitWidth", label = "Width", tooltip = "Used when Own Size is checked.",
+		min = 10, max = 200, step = 1, format = "%d" })
+	page:Slider({ key = p .. "PortraitHeight", label = "Height", tooltip = "Used when Own Size is checked.",
+		min = 10, max = 200, step = 1, format = "%d" })
+	page:Dropdown({ key = p .. "PortraitTarget", label = "Attach To",
+		tooltip = "All Bars puts the portrait beside the name, health and resource bars together.",
+		options = PORTRAIT_TARGETS })
+	page:Anchor({ key = p .. "PortraitPoint", label = "Position",
+		tooltip = "BOTTOM RIGHT: beside the bars on the right, bottoms lined up. LEFT and RIGHT points put it "
+			.. "beside, TOP and BOTTOM above or below, CENTER on top." })
+	Offsets(page, p .. "Portrait", "portrait")
+
+	page:Header("Cast Bar")
+	page:Checkbox({ key = p .. "CastShow", label = "Show Cast Bar",
+		tooltip = "What the unit is casting, over the resource bar (over the health bar's bottom without one)." })
+	page:Checkbox({ key = p .. "CastSeparate", label = "Separate Bar",
+		tooltip = "A cast bar of its own, attached below the resource bar, instead of over it." })
+	page:Checkbox({ key = p .. "CastHideIdle", label = "Hide When Not Casting",
+		tooltip = "The separate bar shows only while the unit casts. Unchecked, it stays as an empty bar." })
+	OwnSize(page, p, "Cast", "separate cast bar", "the resource bar's")
+	Placement(page, p, "Cast", "separate cast bar")
+	page:Checkbox({ key = p .. "CastText", label = "Spell Name", tooltip = "The name of the spell on the cast bar." })
+
+	if unit.combo then
+		page:Header("Combo Points")
+		page:Text("Your combo points (rogues, and druids in cat form) in round totem borders tinted with the Border Tint.")
+		page:Checkbox({ key = p .. "ComboShow", label = "Show Combo Points" })
+		Placement(page, p, "Combo", "combo points")
+		page:Slider({ key = p .. "ComboSize", label = "Size", min = 8, max = 40, step = 1, format = "%d" })
+		page:Slider({ key = p .. "ComboSpacing", label = "Spacing", min = -4, max = 20, step = 1, format = "%d" })
+	end
+
+	if unit.auras then
+		page:Header("Buffs and Debuffs")
+		page:Text("Blizzard's own buffs and debuffs, moved onto this frame: buffs grow up from the top of the "
+			.. "name bar, debuffs down from the bottom of the resource bar.")
+		page:Checkbox({ key = p .. "BuffShow", label = "Show Buffs" })
+		Placement(page, p, "Buff", "buffs")
+		page:Slider({ key = p .. "BuffSize", label = "Buff Size", min = 10, max = 48, step = 1, format = "%d" })
+		page:Checkbox({ key = p .. "DebuffShow", label = "Show Debuffs" })
+		Placement(page, p, "Debuff", "debuffs")
+		page:Slider({ key = p .. "DebuffSize", label = "Debuff Size", min = 10, max = 48, step = 1, format = "%d" })
+		page:Slider({ key = p .. "AuraSpacing", label = "Spacing", min = 0, max = 10, step = 1, format = "%d" })
+	end
 end
 
 local PAGES = {}
 
 PAGES["General"] = function(page)
 	page:Header("Pillars Target Frames")
-	page:Text("A reskin of Blizzard's target, target of target and focus frames, laid out like Blizzard's "
-		.. "target frame: a portrait beside a name bar, the health bar and the resource bar.\n"
-		.. "Each frame has its own page; the Look page (bar texture, border, font, backgrounds and resource "
-		.. "colors) is shared by all three.\n"
-		.. "The frames stay Blizzard's: they show when Blizzard shows them, keep Blizzard's buffs, debuffs, "
-		.. "cast bars and threat number, and move with Edit Mode (Escape → Edit Mode). Left-click targets the "
-		.. "unit, right-click opens its menu.\n"
-		.. "Turning a frame off takes effect after a reload (/reload). /ptf probe shows what this client supports.")
-	page:Button({ label = "", text = "Diagnostics", tooltip = "What this client supports, in a window to copy for bug reports.",
+	page:Text("Target, target of target, focus and target's pet frames in the Pillars look. Each frame has its "
+		.. "own page; the Look page (border, background, bar texture, fonts and colors) is shared.\n"
+		.. "Blizzard's target, target of target and focus frames, and everything on them, are made invisible. "
+		.. "The new frames show when Blizzard's would and move with them in Edit Mode. Blizzard's buffs and "
+		.. "debuffs are moved onto the new frames; the threat number and other things the client keeps from "
+		.. "addons are not shown.\n"
+		.. "Left-click a frame to target the unit, right-click for its menu. Turning a frame off brings "
+		.. "Blizzard's back after a reload.")
+	page:Button({ label = "", text = "Diagnostics",
+		tooltip = "What this client supports, in a window to copy for bug reports.",
 		onClick = function() SlashCmdList.PILLARSTARGETFRAMES("probe") end })
 end
 
@@ -321,35 +425,36 @@ PAGES["Focus"] = function(page)
 end
 
 PAGES["Look"] = function(page)
-	page:Header("Look")
-	page:Text("Shared by the target, target of target and focus frames.")
-	page:MediaDropdown({ key = "barTexture", reload = true, mediaType = "statusbar", label = "Bar Texture",
-		tooltip = "Texture of the health, resource and name bars. Blizzard's is the default look." })
+	page:Header("Border")
 	page:MediaDropdown({ key = "border", mediaType = "border", label = "Border" })
-	page:Slider({ key = "borderSize", label = "Border Size", tooltip = "Thickness of the borders and the round portrait's ring.",
+	page:Slider({ key = "borderSize", label = "Border Size", tooltip = "Thickness of the borders.",
 		min = 1, max = 32, step = 1, format = "%d" })
 	page:Slider({ key = "borderInset", label = "Border Position",
-		tooltip = "Moves the borders in (positive) or out (negative). If you see a gap between a bar and its border, "
-			.. "move the border in until it closes.", min = -16, max = 16, step = 1, format = "%d" })
-	page:Dropdown({ key = "borderTint", label = "Border Tint", tooltip = "Color of the borders and the portrait ring.",
-		options = ns.TINTS })
+		tooltip = "Moves the borders in (positive) or out (negative). If you see a gap between a bar and its "
+			.. "border, move the border in until it closes.", min = -16, max = 16, step = 1, format = "%d" })
+	Color(page, { key = "borderTint", label = "Border Tint", hasAlpha = true, presets = TINT_PRESETS,
+		tooltip = "Color of the borders and the combo points' totem rings." })
+
+	page:Header("Background")
+	page:MediaDropdown({ key = "background", mediaType = "background", label = "Background" })
+	Color(page, { key = "backgroundColor", label = "Background Color", hasAlpha = true, presets = BACKGROUND_PRESETS,
+		tooltip = "Color and opacity of the background behind every bar and the portrait. Dead units always get gray-blue." })
+
+	page:Header("Bars")
+	page:MediaDropdown({ key = "barTexture", mediaType = "statusbar", label = "Bar Texture" })
+	Color(page, { key = "healthColor", label = "Health Color", presets = BAR_PRESETS })
+	Color(page, { key = "manaColor", label = "Mana Color", presets = BAR_PRESETS })
+	Color(page, { key = "rageColor", label = "Rage Color", presets = BAR_PRESETS })
+	Color(page, { key = "energyColor", label = "Energy Color", presets = BAR_PRESETS })
+	Color(page, { key = "focusColor", label = "Focus Color", tooltip = "Hunter pets' focus.", presets = BAR_PRESETS })
+	Color(page, { key = "castColor", label = "Cast Bar Color", presets = BAR_PRESETS })
+	Color(page, { key = "comboColor", label = "Combo Point Color", presets = BAR_PRESETS })
+
+	page:Header("Text")
 	page:MediaDropdown({ key = "font", mediaType = "font", label = "Font" })
+	page:Slider({ key = "fontSize", label = "Font Size", min = 6, max = 24, step = 1, format = "%d" })
 	page:FontShadow({ key = "fontShadow" })
-
-	page:Header("Backgrounds")
-	BackgroundRows(page, "health", "Health Bar")
-	BackgroundRows(page, "power", "Resource Bar")
-	BackgroundRows(page, "name", "Name Bar")
-
-	page:Header("Colors")
-	page:Dropdown({ key = "manaColor", label = "Mana Color", options = ns.BAR_COLORS })
-	page:Dropdown({ key = "rageColor", label = "Rage Color", options = ns.BAR_COLORS })
-	page:Dropdown({ key = "energyColor", label = "Energy Color", options = ns.BAR_COLORS })
-	page:Dropdown({ key = "focusColor", label = "Focus Color", tooltip = "Hunter pets' focus.", options = ns.BAR_COLORS })
-	page:Dropdown({ key = "healPredictColor", label = "Incoming Heal Color",
-		tooltip = "Color of the incoming heal bar. Pale Blue is #B3EBFF.", options = ns.BAR_COLORS })
-	page:Slider({ key = "healPredictOpacity", label = "Incoming Heal Opacity", min = 10, max = 100, step = 5,
-		format = "%d%%" })
+	Color(page, { key = "textColor", label = "Text Color", presets = TINT_PRESETS })
 end
 
 PAGES["Target"] = function(page)
@@ -360,7 +465,11 @@ PAGES["Target of Target"] = function(page)
 	UnitPage(page, ns.UNITS[2])
 end
 
-local PAGE_ORDER = { "General", "Focus", "Look", "Target", "Target of Target" }
+PAGES["Target's Pet"] = function(page)
+	UnitPage(page, ns.UNITS[4])
+end
+
+local PAGE_ORDER = { "General", "Focus", "Look", "Target", "Target of Target", "Target's Pet" }
 
 -- The kit:Open index of each page: 1 is the landing page.
 ns.pageIndex = {}

@@ -2,7 +2,7 @@
 ## Title: Pillars Target Frames
 ## Notes: Target, target of target and focus frames in the Pillars look: name, health and resource bars, portrait, cast bar and combo points, with Blizzard's own frames made invisible.
 ## Author: cloudfan
-## Version: 2.9.0
+## Version: 2.9.1
 ## Dependencies: ClaiibuAPI
 ## SavedVariables: PillarsTargetFramesDB
 ## SavedVariablesPerCharacter: PillarsTargetFramesCharDB

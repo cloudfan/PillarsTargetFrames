@@ -435,13 +435,22 @@ function Skin:BlizzardPieces()
 		end
 	end
 	if self.spec.small then
-		-- The target of target: our frame is its child, so its own pieces go.
-		for _, region in ipairs({ frame:GetRegions() }) do
-			Add(region)
+		-- The target of target: our frame is its child, so its own pieces go,
+		-- at every level (its portrait sits deeper than its art).
+		local function Walk(owner, depth)
+			for _, region in ipairs({ owner:GetRegions() }) do
+				Add(region)
+			end
+			for _, child in ipairs({ owner:GetChildren() }) do
+				if child ~= self.holder and not Forbidden(child) then
+					Add(child)
+					if depth < 4 then
+						Walk(child, depth + 1)
+					end
+				end
+			end
 		end
-		for _, child in ipairs({ frame:GetChildren() }) do
-			Add(child)
-		end
+		Walk(frame, 0)
 		return list
 	end
 	Add(frame.TargetFrameContainer)
@@ -743,17 +752,35 @@ function Skin:PlaceSecure()
 	end)
 end
 
--- Next to Blizzard's buffs: the layout's bottom left just above the top
--- left of Blizzard's buff container (where its first buff shows), or with
--- Edit Mode's Buffs on Top, its top left just below the container. The
--- container is only read as an anchor, never changed, so the frame follows
--- it when Blizzard moves it. Returns false when there is no container.
+-- Next to Blizzard's buffs. The frame is not attached to Blizzard's buff
+-- container itself: the container has no size, and until Blizzard has
+-- shown buffs maybe no position, and a frame attached to it is then never
+-- drawn. Instead it is attached where the container is attached (the same
+-- Blizzard frame, point and offset), only read, never changed. When the
+-- container grows down from its top (buffs below the frame) the layout's
+-- bottom sits just above that spot; when it grows up (Buffs on Top), the
+-- layout's top just below it. Returns false, with the reason in placeMode,
+-- when the container has no usable position yet.
 function Skin:PlaceByBuffs()
 	if self.spec.small or not self:Get("AboveBuffs") then
+		self.placeMode = "middle of Blizzard's frame"
 		return false
 	end
 	local auras = self:AuraContainer()
 	if type(auras) ~= "table" or Forbidden(auras) then
+		self.placeMode = "middle (no buff container)"
+		return false
+	end
+	local count = auras:GetNumPoints()
+	if IsSecret(count) or type(count) ~= "number" or count < 1 then
+		self.placeMode = "middle (buff container has no position yet)"
+		return false
+	end
+	local point, relativeTo, relativePoint, ox, oy = auras:GetPoint(1)
+	if IsSecret(point) or IsSecret(relativeTo) or IsSecret(relativePoint) or IsSecret(ox) or IsSecret(oy)
+		or type(point) ~= "string" or type(relativeTo) ~= "table" or type(ox) ~= "number" or type(oy) ~= "number"
+		or Forbidden(relativeTo) then
+		self.placeMode = "middle (buff container's position is hidden from addons)"
 		return false
 	end
 	local extent, gap = self.extent, self.gap
@@ -761,12 +788,24 @@ function Skin:PlaceByBuffs()
 	-- Attach for the stack keys).
 	local bottomBar = self:Get("PowerShow") and self.parts.power or self.parts.health
 	local below = self.stack[tostring(bottomBar) .. "BOTTOM"] or 0
-	local x, y = self:Get("OffsetX"), self:Get("OffsetY")
-	if Plain(self:Blizzard().buffsOnTop) then
-		self.holder:SetPoint("CENTER", auras, "BOTTOMLEFT", -extent.left + x, -extent.top - gap + y)
+	local hx
+	if point:find("LEFT") then
+		hx = -extent.left
+	elseif point:find("RIGHT") then
+		hx = -extent.right
 	else
-		self.holder:SetPoint("CENTER", auras, "TOPLEFT", -extent.left + x, -extent.bottom + below + gap + y)
+		hx = -(extent.left + extent.right) / 2
 	end
+	local hy
+	if point:find("BOTTOM") then
+		hy = -extent.top - gap -- Buffs on Top: the container grows up
+	else
+		hy = -extent.bottom + below + gap
+	end
+	self.holder:SetPoint("CENTER", relativeTo, relativePoint or point, ox + hx + self:Get("OffsetX"),
+		oy + hy + self:Get("OffsetY"))
+	self.placeMode = "above Blizzard's buffs (" .. point .. " of the container at " .. tostring(relativePoint)
+		.. " of " .. tostring(DebugName(relativeTo)) .. ")"
 	return true
 end
 
@@ -1350,8 +1389,11 @@ function Skin:Refresh()
 	self:UpdatePower()
 	self:UpdateCast()
 	self:UpdateCombo()
-	if not self.clickerPlaced then
-		self:PlaceSecure()
+	-- Placed in the middle because Blizzard's buff container had no position
+	-- yet: try again once Blizzard has laid out the new target.
+	if not self.clickerPlaced or (self.placeMode and self.placeMode:find("^middle %(") and not InCombatLockdown()) then
+		local skin = self
+		kit.events.Defer(self.prefix .. "Place", function() skin:PlaceSecure() end)
 	end
 end
 
@@ -1431,6 +1473,49 @@ function Skin:Apply(current)
 	end
 end
 
+-- For /ptf probe: pieces of Blizzard's frame that still show (anything but
+-- our frames and Blizzard's buff container).
+function Skin:VisibleBlizzard()
+	local rows, frame = {}, self:Blizzard()
+	if not frame then
+		return rows
+	end
+	local skip = {}
+	for _, skin in ipairs(skins) do
+		skip[skin.holder or false] = true
+		skip[skin.root or false] = true
+		if skin ~= self then
+			skip[skin:Blizzard() or false] = true
+		end
+	end
+	skip[self:AuraContainer() or false] = true
+	skip[frame.Selection or false] = true
+	local function Visible(region)
+		local ok, shown, alpha = pcall(function()
+			return region:IsVisible(), region.GetEffectiveAlpha and region:GetEffectiveAlpha() or region:GetAlpha()
+		end)
+		if not ok or IsSecret(shown) or IsSecret(alpha) then
+			return false
+		end
+		return shown and alpha > 0.01
+	end
+	local function Walk(owner, depth)
+		for _, region in ipairs({ owner:GetRegions() }) do
+			if #rows < 12 and not Forbidden(region) and Visible(region) then
+				rows[#rows + 1] = "  " .. tostring(DebugName(region)) .. " [" .. tostring(region:GetObjectType()) .. "]"
+			end
+		end
+		for _, child in ipairs({ owner:GetChildren() }) do
+			if not skip[child] and not Forbidden(child) and depth < 5 then
+				Walk(child, depth + 1)
+			end
+		end
+	end
+	pcall(Walk, frame, 0)
+	table.insert(rows, 1, "Blizzard pieces still visible: " .. (#rows > 0 and "" or "none"))
+	return rows
+end
+
 local function SecretWord(value)
 	return IsSecret(value) and "secret" or "plain"
 end
@@ -1456,6 +1541,12 @@ function Skin:Probe()
 	if self.spec.combo then
 		rows[#rows + 1] = "Combo points: " .. tostring(self.comboMode or "not shown") .. ", wanted: "
 			.. tostring(self.holder and self:ComboWanted() or false)
+	end
+	if not self.spec.small then
+		rows[#rows + 1] = "Placed: " .. tostring(self.placeMode or "not yet")
+	end
+	for _, line in ipairs(self:VisibleBlizzard()) do
+		rows[#rows + 1] = line
 	end
 	local auras = not self.spec.small and self:AuraContainer()
 	if auras then

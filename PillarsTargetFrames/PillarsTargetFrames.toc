@@ -1,0 +1,13 @@
+## Interface: 16001
+## Title: Pillars Target Frames
+## Notes: A reskin of the target, target of target and focus frames, laid out like Blizzard's target frame: portrait, name bar in the reaction color, level, health and resource bars.
+## Author: cloudfan
+## Version: 1.0.0
+## Dependencies: ClaiibuAPI
+## SavedVariables: PillarsTargetFramesDB
+## SavedVariablesPerCharacter: PillarsTargetFramesCharDB
+
+Settings.lua
+Core.lua
+UnitSkin.lua
+Frames.lua

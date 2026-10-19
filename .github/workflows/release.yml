@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to create and release, e.g. v1.0.0"
+        required: true
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the tag matches the .toc version
+        run: |
+          version="${TAG#v}"
+          grep -qx "## Version: ${version}" PillarsTargetFrames/PillarsTargetFrames.toc \
+            || { echo "Tag ${TAG} does not match ## Version in PillarsTargetFrames/PillarsTargetFrames.toc"; exit 1; }
+
+      - name: Check the Lua compiles (Lua 5.1)
+        run: |
+          sudo apt-get install -y lua5.1 >/dev/null
+          find PillarsTargetFrames -name '*.lua' -print0 | xargs -0 -n1 luac5.1 -p
+
+      - name: Build the addon zip
+        run: |
+          mkdir -p dist
+          cp -r PillarsTargetFrames dist/
+          cp README.md dist/PillarsTargetFrames/
+          cd dist && zip -r "PillarsTargetFrames-${TAG}.zip" PillarsTargetFrames
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # On a manual run the tag does not exist yet; --target creates it here.
+          gh release create "$TAG" "dist/PillarsTargetFrames-${TAG}.zip" \
+            --target "$GITHUB_SHA" \
+            --title "Pillars Target Frames ${TAG}" \
+            --prerelease \
+            --notes "Pillars Target Frames for WoW: Forever (## Interface: 16001): a reskin of the target, target of target and focus frames, laid out like Blizzard's target frame. Not yet tested in-game; run /ptf probe on your build.
+
+          Requires ClaiibuAPI (https://github.com/cloudfan/ClaiibuAPI/releases). Unzip both into World of Warcraft\\_classic_beta_\\Interface\\AddOns\\ so you have AddOns\\PillarsTargetFrames\\ and AddOns\\ClaiibuAPI\\."

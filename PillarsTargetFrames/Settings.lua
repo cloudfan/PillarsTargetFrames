@@ -136,6 +136,7 @@ local LAYOUT = {
 	NameTextX = 0,
 	NameTextY = 0,
 	NameClassColor = false,
+	NameGradient = false,
 	LevelShow = true,
 	LevelPoint = "RIGHT",
 	LevelX = 0,
@@ -401,6 +402,11 @@ local function UnitPage(page, unit)
 
 	Section(page, unit, "Name", "Name Bar")
 	page:Checkbox({ key = p .. "NameShow", label = "Show Name Bar" })
+	page:Checkbox({ key = p .. "NameGradient", label = "Gradient Instead of Background",
+		tooltip = "In place of the name bar's background and border: a gradient in the Background Color, solid "
+			.. "on the side facing the bar it is attached to and fading out away from it (from the bottom when "
+			.. "attached above a bar, from the top below one, from the left when on a bar's right, from the right "
+			.. "on its left). At CENTER the background and border stay." })
 	OwnSize(page, p, "Name", "name bar", "the health bar's width")
 	Placement(page, p, "Name", "name bar")
 	page:Checkbox({ key = p .. "NameTextShow", label = "Show Name" })

@@ -511,6 +511,9 @@ function Skin:Create()
 	parts.powerBox = NewBox(parts.power)
 	parts.name = CreateFrame("Frame", nil, holder)
 	parts.nameBox = NewBox(parts.name)
+	parts.nameGradient = parts.name:CreateTexture(nil, "BACKGROUND")
+	parts.nameGradient:SetAllPoints(parts.name)
+	parts.nameGradient:Hide()
 
 	local portrait = CreateFrame("Frame", nil, holder)
 	portrait.model = CreateFrame("PlayerModel", nil, portrait)
@@ -820,6 +823,47 @@ function Skin:LayoutPortrait(heights)
 	portrait.class:SetTexture(CLASS_ICONS)
 end
 
+-- Sets a texture to a gradient between two { r, g, b, a } colors: bottom to
+-- top for VERTICAL, left to right for HORIZONTAL.
+local function SetGradient(texture, orientation, from, to)
+	texture:SetColorTexture(1, 1, 1, 1)
+	if CreateColor and texture.SetGradient then
+		texture:SetGradient(orientation, CreateColor(unpack(from)), CreateColor(unpack(to)))
+	elseif texture.SetGradientAlpha then
+		texture:SetGradientAlpha(orientation, from[1], from[2], from[3], from[4], to[1], to[2], to[3], to[4])
+	else
+		texture:SetColorTexture(to[1], to[2], to[3], (from[4] + to[4]) / 2)
+	end
+end
+
+-- The name bar's gradient: solid on the side facing the bar it is attached
+-- to, clear on the far side, in the Background Color (gray-blue when dead).
+-- Its background and border go while it shows; at CENTER they stay.
+function Skin:PaintNameGradient()
+	local parts = self.parts
+	local gradient, box = parts.nameGradient, parts.nameBox
+	local spec = OUTSIDE[self:Get("NamePoint")] or OUTSIDE.CENTER
+	local on = self:Get("NameGradient") and (spec[3] ~= 0 or spec[4] ~= 0)
+	if not on then
+		gradient:Hide()
+		return
+	end
+	box.back:Hide()
+	box.border:Hide()
+	local r, g, b, a = BackgroundColor(self.dead)
+	local solid, clear = { r, g, b, a or 1 }, { r, g, b, 0 }
+	if spec[4] > 0 then
+		SetGradient(gradient, "VERTICAL", solid, clear) -- above a bar: from the bottom
+	elseif spec[4] < 0 then
+		SetGradient(gradient, "VERTICAL", clear, solid) -- below a bar: from the top
+	elseif spec[3] > 0 then
+		SetGradient(gradient, "HORIZONTAL", solid, clear) -- on a bar's right: from the left
+	else
+		SetGradient(gradient, "HORIZONTAL", clear, solid) -- on a bar's left: from the right
+	end
+	gradient:Show()
+end
+
 function Skin:LayoutCombo()
 	local combo = self.parts.combo
 	local count = self:ComboMax()
@@ -907,6 +951,7 @@ function Skin:LayoutNow()
 	end
 	PlaceBox(parts.powerBox, self.dead)
 	PlaceBox(parts.nameBox, self.dead)
+	self:PaintNameGradient()
 
 	self:LayoutPortrait(heights)
 
@@ -1046,6 +1091,7 @@ function Skin:UpdateDead()
 	for _, box in ipairs({ parts.healthBox, parts.powerBox, parts.nameBox, parts.portraitBox }) do
 		TintBox(box, dead)
 	end
+	self:PaintNameGradient()
 	parts.portrait.model:SetAlpha(dead and DEAD_PORTRAIT_ALPHA or 1)
 	parts.portrait.class:SetAlpha(dead and DEAD_PORTRAIT_ALPHA or 1)
 end

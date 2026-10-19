@@ -39,6 +39,7 @@ Focus and Target of Target follow the Target page section by section. Each secti
 | `PowerTarget`, `PowerPoint`, `PowerX`, `PowerY` | Dropdown (health, resource, name bar), anchor, sliders −100 to 100 | `health`, `BOTTOM`, `0`, `0` | | Where the resource bar attaches. |
 | `PowerText`, `PowerTextPoint` | Dropdown, anchor | `none`, `CENTER` | | Text on the resource bar. |
 | `NameShow` | Checkbox | `true` | Pet: `false` | The name bar. |
+| `NameGradient` | Checkbox | `false` | | In place of the name bar's background and border, a gradient in the Background Color, solid on the side facing the bar it is attached to: from the bottom when attached above a bar (TOP points), from the top below one (BOTTOM points), from the left on a bar's right, from the right on its left. At CENTER the background and border stay. |
 | `NameOwnSize`, `NameWidth`, `NameHeight` | Checkbox, sliders | `false`, `160`, `18` | | The name bar's own width (unchecked: the health bar's) and its height. |
 | `NameTarget`, `NamePoint`, `NameX`, `NameY` | Dropdown, anchor, sliders | `health`, `TOP`, `0`, `0` | | Where the name bar attaches. |
 | `NameTextShow`, `NameTextPoint`, `NameTextX`, `NameTextY` | Checkbox, anchor, sliders | `true`, `LEFT`, `0`, `0` | | The unit's name on the name bar. |

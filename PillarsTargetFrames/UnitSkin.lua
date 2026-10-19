@@ -1473,6 +1473,22 @@ function Skin:Probe()
 		if self.watcher then
 			rows[#rows + 1] = "Unit watch frame shown: " .. tostring(self.watcher:IsShown()) .. ", targetpet exists: "
 				.. tostring(Plain(UnitExists(self.unit)))
+			-- Whose pet the client would report: only players' pets count, and
+			-- the probe shows whether this build answers for them at all.
+			local function Word(value)
+				if IsSecret(value) then
+					return "secret"
+				end
+				return tostring(value)
+			end
+			rows[#rows + 1] = "Your target: exists " .. Word(UnitExists("target")) .. ", a player "
+				.. Word(UnitIsPlayer("target")) .. ", player controlled "
+				.. Word(UnitPlayerControlled and UnitPlayerControlled("target")) .. ", in your party "
+				.. Word(UnitInParty and UnitInParty("target")) .. ", in your raid " .. Word(UnitInRaid and UnitInRaid("target"))
+			rows[#rows + 1] = "targetpet: GUID " .. (UnitGUID and (IsSecret(UnitGUID("targetpet")) and "secret"
+				or (UnitGUID("targetpet") and "yes" or "none")) or "no UnitGUID") .. ", name "
+				.. (IsSecret(UnitName("targetpet")) and "secret" or (UnitName("targetpet") and "yes" or "none"))
+				.. "; your own pet exists " .. Word(UnitExists("pet"))
 		end
 	end
 	rows[#rows + 1] = "Click button: " .. (self.clicker and "yes" or "no (made out of combat, once the frame shows)")

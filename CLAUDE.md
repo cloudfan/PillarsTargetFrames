@@ -8,6 +8,7 @@ A World of Warcraft: Forever addon (`## Interface: 16001`, Lua 5.1) built on Cla
 - `Core.lua`: `ns.RegisterFeature`, `ns.ApplySettings`, `ns.IsSecret` / `ns.Plain`, the probe and `/ptf`.
 - `UnitSkin.lua`: the frames, one `Skin` object per frame, and the event handlers that dispatch to them.
 - `Frames.lua`: the three frames (`ns.NewUnitSkin` specs).
+- `AuraProbe.lua`: a probe-only test of what `C_UnitAuras` gives addon code about the target's auras in and out of combat. It never touches Blizzard's frames.
 
 ## Rules
 

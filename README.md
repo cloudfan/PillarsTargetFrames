@@ -79,7 +79,7 @@ Boxes attached to the same side of the same bar stack outward in this order: com
 
 ## Not yet tested in-game
 
-Written against the Mainline frame layout Forever shares, with fallbacks for the old named frames. `/ptf probe` reports what your build has: `FocusFrame`, the cast duration helpers used when cast times are secret, whether Blizzard's buff container shows, the actions the client blocked this session, and the Edit Mode boxes.
+Written against the Mainline frame layout Forever shares, with fallbacks for the old named frames. `/ptf probe` reports what your build has: `FocusFrame`, the cast duration helpers used when cast times are secret, whether Blizzard's buff container shows, what `C_UnitAuras` gives addon code about your target's buffs and debuffs in and out of combat (to decide whether the frames can draw aura icons of their own), the actions the client blocked this session, and the Edit Mode boxes.
 
 ## Install
 

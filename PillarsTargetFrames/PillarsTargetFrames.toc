@@ -2,7 +2,7 @@
 ## Title: Pillars Target Frames
 ## Notes: Target, target of target, focus and target's pet frames in the Pillars look: name, health and resource bars, portrait, cast bar, combo points, and Blizzard's buffs and debuffs moved onto them.
 ## Author: cloudfan
-## Version: 2.3.0
+## Version: 2.4.0
 ## Dependencies: ClaiibuAPI
 ## SavedVariables: PillarsTargetFramesDB
 ## SavedVariablesPerCharacter: PillarsTargetFramesCharDB

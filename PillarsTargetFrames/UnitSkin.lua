@@ -611,6 +611,9 @@ function Skin:StartTicker()
 			skin:StopTicker()
 			return
 		end
+		if skin.preview then
+			return
+		end
 		skin:UpdateHealth()
 		skin:UpdatePower()
 		skin:UpdateName()
@@ -1018,6 +1021,9 @@ function Skin:LayoutNow()
 	texts.cast:SetWidth(math.max(10, cast:GetWidth() - 8))
 
 	self:Refresh()
+	if self.preview then
+		self:FillPreview()
+	end
 	self:PlaceSecure()
 end
 
@@ -1304,6 +1310,119 @@ end
 -- anchor, as wide as the health bar, growing away from the bar it is
 -- attached to.
 
+local IsDebuffButton
+
+local function LooksLikeAura(frame)
+	return type(frame) == "table" and (frame.Icon or frame.icon) ~= nil and (frame.Cooldown or frame.cooldown) ~= nil
+end
+
+IsDebuffButton = function(button)
+	local name = DebugName(button)
+	if Mentions(name, "debuff") then
+		return true
+	end
+	if Mentions(name, "buff") then
+		return false
+	end
+	return (button.Border or button.DebuffBorder) ~= nil
+end
+
+-- Fields of Blizzard's frame that hand out frames (frame pools), by key.
+function Skin:FramePools()
+	local list = {}
+	local frame = self:Blizzard()
+	for key, value in pairs(frame) do
+		if type(key) == "string" and type(value) == "table" and type(value.EnumerateActive) == "function" then
+			list[#list + 1] = { key = key, pool = value }
+		end
+	end
+	return list
+end
+
+-- Our own frames and Blizzard's pieces that hold no auras.
+function Skin:NotAuraHolders()
+	local skip = {}
+	for _, skin in ipairs(skins) do
+		skip[skin.holder or false] = true
+		skip[skin.root or false] = true
+		if skin ~= self then
+			skip[skin:Blizzard() or false] = true
+		end
+	end
+	local frame = self:Blizzard()
+	skip[frame.spellbar or false] = true
+	skip[frame.Selection or false] = true
+	skip[frame.totFrame or false] = true
+	return skip
+end
+
+function Skin:ScanAuras(owner, buffs, debuffs, depth, skip)
+	skip = skip or self:NotAuraHolders()
+	for _, child in ipairs({ owner:GetChildren() }) do
+		if not skip[child] then
+			if LooksLikeAura(child) then
+				if child:IsShown() then
+					local list = IsDebuffButton(child) and debuffs or buffs
+					list[#list + 1] = child
+				end
+			elseif depth < 4 then
+				self:ScanAuras(child, buffs, debuffs, depth + 1, skip)
+			end
+		end
+	end
+end
+
+-- For /ptf probe: what Blizzard's frame holds, to find where this build
+-- keeps its buff buttons.
+function Skin:AuraReport()
+	local frame = self:Blizzard()
+	local rows = {}
+	local pools = {}
+	for _, entry in ipairs(self:FramePools()) do
+		pools[#pools + 1] = entry.key
+	end
+	rows[#rows + 1] = "Pools on the frame: " .. (#pools > 0 and table.concat(pools, ", ") or "none")
+	local fields = {}
+	for key, value in pairs(frame) do
+		if type(key) == "string" and (Mentions(key, "aura") or Mentions(key, "buff")) then
+			fields[#fields + 1] = key .. " (" .. type(value) .. ")"
+		end
+	end
+	table.sort(fields)
+	rows[#rows + 1] = "Aura fields on the frame: " .. (#fields > 0 and table.concat(fields, ", ") or "none")
+	local skip = self:NotAuraHolders()
+	local count = 0
+	local function Walk(owner, depth, indent)
+		for _, child in ipairs({ owner:GetChildren() }) do
+			if count >= 40 then
+				return
+			end
+			if not skip[child] then
+				count = count + 1
+				local keys = {}
+				for _, key in ipairs({ "Icon", "icon", "Cooldown", "cooldown", "Border", "Count", "count" }) do
+					if child[key] ~= nil then
+						keys[#keys + 1] = key
+					end
+				end
+				local width, height = child:GetWidth(), child:GetHeight()
+				local alpha = child.GetEffectiveAlpha and child:GetEffectiveAlpha()
+				rows[#rows + 1] = indent .. tostring(DebugName(child)) .. " [" .. tostring(child:GetObjectType()) .. "] "
+					.. (IsSecret(width) and "?" or format("%.0f", width or 0)) .. "x"
+					.. (IsSecret(height) and "?" or format("%.0f", height or 0)) .. ", shown " .. tostring(child:IsShown())
+					.. ", opacity " .. (IsSecret(alpha) and "secret" or tostring(alpha))
+					.. (#keys > 0 and (", has " .. table.concat(keys, " ")) or "")
+				if depth < 2 then
+					Walk(child, depth + 1, indent .. "  ")
+				end
+			end
+		end
+	end
+	rows[#rows + 1] = "Children of " .. tostring(DebugName(frame)) .. " (not ours):"
+	Walk(frame, 0, "  ")
+	return rows
+end
+
 -- Blizzard's buff and debuff buttons in their order.
 function Skin:AuraButtons()
 	local frame = self:Blizzard()
@@ -1334,6 +1453,32 @@ function Skin:AuraButtons()
 			end
 		end)
 		self.auraSource = "aura pools (all)"
+	end
+	-- Any other pool Blizzard keeps on the frame, whatever its name.
+	if #buffs == 0 and #debuffs == 0 then
+		for _, entry in ipairs(self:FramePools()) do
+			pcall(function()
+				for button in entry.pool:EnumerateActive() do
+					if type(button) == "table" and button.IsShown and button:IsShown() then
+						local isDebuff = Mentions(entry.key, "debuff") or (not Mentions(entry.key, "buff")
+							and IsDebuffButton(button))
+						local list = isDebuff and debuffs or buffs
+						list[#list + 1] = button
+					end
+				end
+			end)
+		end
+		if #buffs + #debuffs > 0 then
+			self.auraSource = "pools on the frame"
+		end
+	end
+	-- Buttons that look like auras (an icon and a cooldown) anywhere in the
+	-- frame, outside our own frames and the target of target.
+	if #buffs == 0 and #debuffs == 0 then
+		self:ScanAuras(frame, buffs, debuffs, 0)
+		if #buffs + #debuffs > 0 then
+			self.auraSource = "found in the frame"
+		end
 	end
 	if #buffs == 0 and #debuffs == 0 then
 		local name = frame:GetName()
@@ -1505,7 +1650,7 @@ end
 -- Everything that depends on the unit: a new target, focus, target's target
 -- or target's pet.
 function Skin:Refresh()
-	if not self:Ready() then
+	if not self:Ready() or self.preview then
 		return
 	end
 	self.unitExists = Plain(UnitExists(self.unit)) ~= false
@@ -1609,7 +1754,66 @@ function Skin:AddMover()
 		xKey = self.prefix .. "OffsetX",
 		yKey = self.prefix .. "OffsetY",
 		regions = function() return { skin.root } end,
+		onEnter = function() skin:Preview(true) end,
+		onExit = function() skin:Preview(false) end,
 	})
+end
+
+-- While Edit Mode is open the frame shows with sample contents, so it can be
+-- placed without a target of target or a target with a pet. Edit Mode is
+-- out of combat; the unit watch and the parent change are undone on exit.
+function Skin:Preview(on)
+	if not (self.active and self.holder) or InCombatLockdown() then
+		return
+	end
+	if on == (self.preview or false) then
+		return
+	end
+	self.preview = on
+	local holder, blizzard = self.holder, self:Blizzard()
+	if on then
+		if self.watcher then
+			UnregisterUnitWatch(self.watcher)
+			self.watcher:Show()
+		else
+			holder:SetParent(self.root)
+		end
+		holder:Show()
+		self:FillPreview()
+	else
+		if self.watcher then
+			RegisterUnitWatch(self.watcher)
+		else
+			holder:SetParent(blizzard)
+		end
+		holder:SetFrameStrata(blizzard:GetFrameStrata())
+		holder:SetFrameLevel(blizzard:GetFrameLevel() + 5)
+		self.dead = nil
+		self:Layout()
+	end
+end
+
+-- Sample contents: full-ish bars, the frame's name, your own portrait.
+function Skin:FillPreview()
+	local parts, texts = self.parts, self.texts
+	parts.health:SetMinMaxValues(0, 100)
+	parts.health:SetValue(75)
+	local health = Color("healthColor")
+	parts.health:SetStatusBarColor(health[1], health[2], health[3])
+	parts.power:SetMinMaxValues(0, 100)
+	parts.power:SetValue(50)
+	local mana = Color("manaColor")
+	parts.power:SetStatusBarColor(mana[1], mana[2], mana[3])
+	texts.health:SetText(self:Get("HealthText") ~= "none" and "75%" or "")
+	texts.power:SetText("")
+	texts.name:SetText(self:Get("NameTextShow") and self.spec.name or "")
+	texts.level:SetText(self:Get("LevelShow") and "60" or "")
+	texts.cast:SetText("")
+	parts.cast:Hide()
+	parts.portrait.class:Hide()
+	parts.portrait.model:Show()
+	parts.portrait.model:SetUnit("player")
+	HoldStill(parts.portrait.model)
 end
 
 -- Apply and probe ------------------------------------------------------------------------
@@ -1674,6 +1878,11 @@ function Skin:Probe()
 			.. ", auraPools: " .. ns.Has(frame and frame.auraPools)
 		rows[#rows + 1] = "First aura button in: " .. tostring(self.auraWhere or "-")
 			.. ", pieces made visible again for them: " .. tostring(self.uncovered or 0)
+		if frame then
+			for _, row in ipairs(self:AuraReport()) do
+				rows[#rows + 1] = row
+			end
+		end
 	end
 	if self.root then
 		rows[#rows + 1] = "Edit Mode box: " .. (self.mover and "yes" or "no (needs ClaiibuAPI 1.4.0)")

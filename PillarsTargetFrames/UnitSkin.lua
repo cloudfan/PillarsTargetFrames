@@ -477,7 +477,25 @@ function Skin:BlizzardPieces()
 			end
 		end
 	end
-	Add(frame.spellbar)
+	-- Blizzard's cast bar fades its "Interrupted" and "Failed" out with an
+	-- alpha animation, which does not go through SetAlpha: its pieces are
+	-- made invisible too, so it stays unseen while it plays.
+	local function AddDeep(owner, depth)
+		if type(owner) ~= "table" or not owner.GetRegions or Forbidden(owner) then
+			return
+		end
+		Add(owner)
+		for _, region in ipairs({ owner:GetRegions() }) do
+			Add(region)
+		end
+		if depth < 3 then
+			for _, child in ipairs({ owner:GetChildren() }) do
+				AddDeep(child, depth + 1)
+			end
+		end
+	end
+	AddDeep(frame.spellbar, 0)
+	AddDeep(self:Named("SpellBar"), 0)
 	Add(frame.threatIndicator)
 	Add(frame.threatNumericIndicator)
 	for _, suffix in ipairs({ "TextureFrame", "NameBackground", "Background", "Portrait", "Flash", "HealthBar",
@@ -595,7 +613,8 @@ function Skin:Create()
 	parts.healthText = Layer(10)
 	parts.powerText = Layer(10)
 	parts.nameText = Layer(12)
-	parts.castText = Layer(14)
+	-- The spell name's layer is a child of the cast bar, so it hides with it.
+	parts.castText = CreateFrame("Frame", nil, parts.cast)
 	texts.health = NewText(parts.healthText)
 	texts.power = NewText(parts.powerText)
 	texts.name = NewText(parts.nameText)
@@ -1072,6 +1091,7 @@ function Skin:LayoutNow()
 	cast:SetFrameLevel(math.max(power:GetFrameLevel(), health:GetFrameLevel()) + 4)
 	PlaceBox(parts.castBox, false)
 	parts.castText:SetAllPoints(cast)
+	parts.castText:SetFrameLevel(cast:GetFrameLevel() + 6)
 
 	-- Text: the shared font, shadow and size.
 	for _, fontString in pairs(texts) do
@@ -1258,6 +1278,7 @@ function Skin:UpdateCast()
 	if shown then
 		name, startMS, endMS, channel = self:CastInfo()
 	end
+	local wasCasting = cast.casting
 	cast.casting = false
 	if IsSecret(name) or name ~= nil then
 		if not IsSecret(startMS) and not IsSecret(endMS) and type(startMS) == "number" and type(endMS) == "number" then
@@ -1276,12 +1297,26 @@ function Skin:UpdateCast()
 		end
 	end
 	if cast.casting then
+		self.failUntil = nil
+		local color = Color("castColor")
+		cast:SetStatusBarColor(color[1], color[2], color[3])
 		self.texts.cast:SetText(self:Get("CastText") and name or "")
 		if cast.startTime then
 			self:CastTick(cast)
 		end
 		cast:Show()
-	elseif shown and self:Get("CastSeparate") and not self:Get("CastHideIdle") then
+		return
+	end
+	if wasCasting then
+		self.castEnded = GetTime()
+	end
+	-- "Interrupted" or "Failed" stays up for a moment (see CastFailed).
+	if self.failUntil and GetTime() < self.failUntil then
+		return
+	end
+	self.failUntil = nil
+	self.texts.cast:SetText("")
+	if shown and self:Get("CastSeparate") and not self:Get("CastHideIdle") then
 		-- Kept as an empty bar.
 		cast:SetMinMaxValues(0, 1)
 		cast:SetValue(0)
@@ -1292,13 +1327,61 @@ function Skin:UpdateCast()
 	end
 end
 
+-- A cast that was interrupted or failed: the bar stays where the cast was
+-- (over the resource bar, or the separate bar), full and red with
+-- "Interrupted" or "Failed", for FAIL_TIME seconds.
+local FAIL_TIME = 1
+local FAIL_COLOR = { 0.85, 0.1, 0.1 }
+
+function Skin:ShowCastEnd(text)
+	if not (self:Ready() and self:Get("CastShow")) then
+		return
+	end
+	local cast = self.parts.cast
+	-- Only for a cast this frame showed (the events also come for casts
+	-- that never started).
+	local recent = cast.casting or (self.castEnded and GetTime() - self.castEnded < 0.5)
+	if not recent then
+		return
+	end
+	cast.casting = false
+	cast.startTime = nil
+	self.castEnded = GetTime()
+	self.failUntil = GetTime() + FAIL_TIME
+	cast:SetMinMaxValues(0, 1)
+	cast:SetValue(1)
+	cast:SetStatusBarColor(FAIL_COLOR[1], FAIL_COLOR[2], FAIL_COLOR[3])
+	self.texts.cast:SetText(self:Get("CastText") and text or "")
+	cast:Show()
+	local skin = self
+	if C_Timer and C_Timer.After then
+		C_Timer.After(FAIL_TIME, function()
+			if skin.failUntil and GetTime() >= skin.failUntil - 0.05 then
+				skin.failUntil = nil
+				skin:UpdateCast()
+			end
+		end)
+	end
+end
+
+function Skin:CastInterrupted()
+	self:ShowCastEnd(INTERRUPTED or "Interrupted")
+end
+
+function Skin:CastFailed()
+	self:ShowCastEnd(FAILED or "Failed")
+end
+
 function Skin:CastTick(cast)
 	if not (cast.casting and cast.startTime) then
 		return
 	end
 	local now = GetTime()
 	if now >= cast.endTime then
-		self:UpdateCast()
+		-- Done: the bar holds full (empty for a channel) until the cast's
+		-- end event, or the target of target's refresh, hides it. Asking
+		-- again here could loop while the client still reports the cast.
+		cast:SetValue(cast.channel and 0 or (cast.endTime - cast.startTime))
 		return
 	end
 	local elapsed = now - cast.startTime
@@ -1619,8 +1702,8 @@ local UNIT_EVENTS = {
 	UNIT_MODEL_CHANGED = "UpdatePortrait",
 	UNIT_SPELLCAST_START = "UpdateCast",
 	UNIT_SPELLCAST_STOP = "UpdateCast",
-	UNIT_SPELLCAST_FAILED = "UpdateCast",
-	UNIT_SPELLCAST_INTERRUPTED = "UpdateCast",
+	UNIT_SPELLCAST_FAILED = "CastFailed",
+	UNIT_SPELLCAST_INTERRUPTED = "CastInterrupted",
 	UNIT_SPELLCAST_DELAYED = "UpdateCast",
 	UNIT_SPELLCAST_CHANNEL_START = "UpdateCast",
 	UNIT_SPELLCAST_CHANNEL_STOP = "UpdateCast",
